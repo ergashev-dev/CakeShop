@@ -43,3 +43,5 @@ pnpm-debug.log*
 *.sln
 *.sw?
 thumbs.db
+
+.vercel

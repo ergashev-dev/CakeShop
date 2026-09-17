@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import Button from '../../components/common/Button';
+import Cake3DViewer from '../../components/cake/Cake3DViewer';
 
 const WEIGHT_OPTIONS = [
   { id: '1.0kg', weight: '1.0 kg', label: '1.0 kg (Kichik bayram)', servings: '4–6 kishi', basePrice: 220000 },
@@ -523,9 +524,20 @@ const CustomCakePage = () => {
             </div>
           </div>
 
-          {/* Sticky Live Summary Sidebar (4 cols) */}
-          <div className="lg:col-span-4">
-            <div className="sticky top-24 bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl p-6 shadow-subtle space-y-4">
+          {/* Sticky Live 3D Studio & Summary Sidebar (4 cols) */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="sticky top-20 space-y-4">
+              {/* Real-Time Interactive 3D Cake Studio */}
+              <Cake3DViewer
+                weightId={selectedWeight.id}
+                biscuitId={selectedBiscuit.id}
+                creamId={selectedCream.id}
+                decorId={selectedDecor.id}
+                greetingText={greetingText}
+              />
+
+              {/* Specs & Price Card */}
+              <div className="bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl p-5 sm:p-6 shadow-subtle space-y-4">
               <h4 className="text-base font-bold pb-3 border-b border-[#E5E7EB] dark:border-[#26282E]">
                 {t('custom_cake.specs_title', 'Tortingiz Spetsifikatsiyasi')}
               </h4>
@@ -595,6 +607,7 @@ const CustomCakePage = () => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

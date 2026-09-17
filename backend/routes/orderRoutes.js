@@ -6,8 +6,8 @@ import { paymentLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
-// Create order
-router.post('/', paymentLimiter, optionalAuthMiddleware, orderController.createOrder);
+// Create order (Requires Authentication)
+router.post('/', paymentLimiter, authMiddleware, orderController.createOrder);
 
 // Customer order history
 router.get('/user', authMiddleware, orderController.getUserOrders);

@@ -6,21 +6,25 @@
   html {
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     color: #17181A;
-    background-color: #F7F8FA;
+    background-color: #FAF8F5;
+    background-image: radial-gradient(at 15% 15%, rgba(245, 158, 11, 0.05) 0px, transparent 45%), radial-gradient(at 85% 85%, rgba(244, 63, 94, 0.03) 0px, transparent 45%), radial-gradient(at 50% 30%, rgba(59, 130, 246, 0.02) 0px, transparent 50%);
+    background-attachment: fixed;
     scroll-behavior: smooth;
   }
 
-  .dark html {
+  .dark html, html.dark {
     color: #F3F4F6;
-    background-color: #0F1012;
+    background-color: #0B0C10;
+    background-image: radial-gradient(at 15% 15%, rgba(217, 119, 6, 0.08) 0px, transparent 45%), radial-gradient(at 85% 85%, rgba(139, 92, 246, 0.06) 0px, transparent 45%), radial-gradient(at 50% 50%, rgba(236, 72, 153, 0.04) 0px, transparent 50%);
+    background-attachment: fixed;
   }
 
   body {
-    background-color: #F7F8FA;
+    background-color: transparent;
   }
 
-  .dark body {
-    background-color: #0F1012;
+  .dark body, html.dark body {
+    background-color: transparent;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -28,51 +32,99 @@
     font-weight: 600;
   }
 
-  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6,
+  html.dark h1, html.dark h2, html.dark h3, html.dark h4, html.dark h5, html.dark h6 {
     color: #F3F4F6;
   }
 
-  /* High contrast input & form typography */
-  input, textarea, select {
-    color: #17181A;
+  /* Universal High Contrast Input & Form Typography - prevents white-on-white and black-on-black */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    color: #111827 !important;
   }
 
-  .dark input, .dark textarea, .dark select {
-    color: #F3F4F6;
+  .dark input:not([type="checkbox"]):not([type="radio"]),
+  .dark textarea,
+  .dark select,
+  html.dark input:not([type="checkbox"]):not([type="radio"]),
+  html.dark textarea,
+  html.dark select {
+    color: #F9FAFB !important;
   }
 
-  /* Prevent white text on white input fields in any theme */
-  .bg-white input:not([type="checkbox"]):not([type="radio"]),
-  .bg-white textarea,
-  .bg-white select,
-  input.bg-white,
-  textarea.bg-white {
-    color: #17181A !important;
+  input::placeholder,
+  textarea::placeholder {
+    color: #6B7280 !important;
   }
 
-  input::placeholder, textarea::placeholder {
-    color: #9CA3AF;
-  }
-
-  .dark input::placeholder, .dark textarea::placeholder {
-    color: #6B7280;
+  .dark input::placeholder,
+  .dark textarea::placeholder,
+  html.dark input::placeholder,
+  html.dark textarea::placeholder {
+    color: #9CA3AF !important;
   }
 
   /* Browser autofill text color fix */
   input:-webkit-autofill,
   textarea:-webkit-autofill,
   select:-webkit-autofill {
-    -webkit-text-fill-color: #17181A !important;
+    -webkit-text-fill-color: #111827 !important;
     transition: background-color 5000s ease-in-out 0s;
   }
 
   .dark input:-webkit-autofill,
   .dark textarea:-webkit-autofill,
-  .dark select:-webkit-autofill {
-    -webkit-text-fill-color: #F3F4F6 !important;
-    -webkit-box-shadow: 0 0 0px 1000px #1F2228 inset !important;
+  .dark select:-webkit-autofill,
+  html.dark input:-webkit-autofill,
+  html.dark textarea:-webkit-autofill,
+  html.dark select:-webkit-autofill {
+    -webkit-text-fill-color: #F9FAFB !important;
+    -webkit-box-shadow: 0 0 0px 1000px #1A1C22 inset !important;
     transition: background-color 5000s ease-in-out 0s;
   }
+}
+
+/* Micro-animations and Keyframes */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.88;
+    transform: scale(1.03);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 22s linear infinite;
+}
+
+.animate-float-gentle {
+  animation: float-gentle 4s ease-in-out infinite;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s ease-in-out infinite;
 }
 
 /* Subtle micro-animations */

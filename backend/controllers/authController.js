@@ -10,7 +10,7 @@ import { telegramBotService } from '../services/telegramBotService.js';
 import passport from 'passport';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'boltortlari_super_secret_jwt_key_2026_luxury';
-const JWT_EXPIRES_IN = '7d';
+const JWT_EXPIRES_IN = '1d'; // 24 hours validity
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{4,32}$/;
 
@@ -29,7 +29,7 @@ function setAuthCookie(res, token) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day (24 hours)
   });
 }
 

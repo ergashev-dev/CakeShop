@@ -173,9 +173,12 @@ const Hero = () => {
           </div>
 
           {/* Right Column: Hero Visual Showcase (Auto-Alternating with Smooth Animations) */}
-          <div className="lg:col-span-5">
+          <div className="lg:col-span-5 relative">
+            {/* Ambient Confectionery Glow */}
+            <div className="absolute -inset-2 bg-gradient-to-tr from-amber-500/20 via-blue-500/15 to-rose-500/20 rounded-3xl blur-2xl opacity-75 pointer-events-none" />
+
             <div
-              className="relative rounded-2xl overflow-hidden border border-[#E5E7EB] dark:border-[#26282E] shadow-xl bg-[#F3F4F6] dark:bg-[#1C1F26] aspect-[4/3] sm:aspect-[5/4] group select-none"
+              className="relative rounded-2xl overflow-hidden border border-amber-200/60 dark:border-amber-500/20 shadow-2xl bg-[#F3F4F6] dark:bg-[#1C1F26] aspect-[4/3] sm:aspect-[5/4] group select-none"
               onMouseEnter={() => setIsPaused(true)}
               onMouseLeave={() => setIsPaused(false)}
             >

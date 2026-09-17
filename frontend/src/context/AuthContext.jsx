@@ -29,6 +29,14 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     initAuth();
+
+    const handleUnauthorized = () => {
+      setToken(null);
+      setUser(null);
+      socketClient.disconnect();
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
   const login = async (identifier, password) => {

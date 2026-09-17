@@ -19,6 +19,21 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Response interceptor: auto-clear token on 401 Unauthorized (1-day expiration)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      const currentToken = localStorage.getItem('bol_tortlari_token');
+      if (currentToken) {
+        localStorage.removeItem('bol_tortlari_token');
+        window.dispatchEvent(new Event('auth:unauthorized'));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const authApi = {
   login: (login, password) => api.post('/auth/login', { login, password }),
   googleTokenLogin: (credential) => api.post('/auth/google/token', { credential }),

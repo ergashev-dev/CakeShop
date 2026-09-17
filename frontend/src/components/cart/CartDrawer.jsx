@@ -27,7 +27,7 @@ import { handleImageError, DEFAULT_CAKE_IMAGE } from '../../utils/imageFallback'
 import PaymentModal from '../payment/PaymentModal';
 import LocationPickerModal from '../map/LocationPickerModal';
 
-const CartDrawer = () => {
+const CartDrawer = ({ onAuthRequired }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -213,6 +213,12 @@ const CartDrawer = () => {
   const handleCheckoutSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
+
+    if (!user) {
+      if (onAuthRequired) onAuthRequired();
+      setErrorMessage(t('cart.error_auth', 'Buyurtma berish uchun avval tizimga kiring yoki ro‘yxatdan o‘ting.'));
+      return;
+    }
 
     if (!formData.customer_name.trim()) {
       setErrorMessage(t('cart.error_name', 'Iltimos, ismingizni kiriting.'));
@@ -457,9 +463,31 @@ const CartDrawer = () => {
                     <span className="text-[#2563EB] text-base">{formatPrice(grandTotal)}</span>
                   </div>
 
+                  {!user && (
+                    <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs flex items-center justify-between gap-2">
+                      <div className="text-amber-800 dark:text-amber-300">
+                        <span className="font-bold block">Tizimga kirish talab qilinadi</span>
+                        <span>Buyurtma berish uchun avval profilingizga kiring.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={onAuthRequired}
+                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shrink-0 cursor-pointer transition-colors"
+                      >
+                        Kirish
+                      </button>
+                    </div>
+                  )}
+
                   <div className="pt-1">
                     <button
-                      onClick={() => setStep('checkout')}
+                      onClick={() => {
+                        if (!user) {
+                          if (onAuthRequired) onAuthRequired();
+                          return;
+                        }
+                        setStep('checkout');
+                      }}
                       className="w-full py-3 px-4 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-subtle transition-colors flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span>{t('cart.proceed', 'Buyurtmani rasmiylashtirish')}</span>
