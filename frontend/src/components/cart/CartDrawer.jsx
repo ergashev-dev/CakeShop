@@ -119,6 +119,91 @@ const CartDrawer = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const [detectingLocation, setDetectingLocation] = useState(false);
+
+  const handleDetectLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setErrorMessage('Qurilmangizda geolokatsiya qo‘llab-quvvatlanmaydi.');
+      return;
+    }
+
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+          const road = data.address?.road || data.address?.suburb || '';
+          const district = data.address?.county || data.address?.city || data.address?.state || '';
+          const fullAddress = road ? `${district}, ${road}` : data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          setFormData((prev) => ({ ...prev, customer_address: fullAddress }));
+        } catch {
+          setFormData((prev) => ({
+            ...prev,
+            customer_address: `Joylashuv (GPS): ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+          }));
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      () => {
+        setDetectingLocation(false);
+        setErrorMessage('Joylashuvni aniqlab bo‘lmadi. Iltimos, brauzerda geolokatsiyaga ruxsat bering.');
+      },
+      { timeout: 8000 }
+    );
+  };
+
+  const processOrderCreation = async (paymentDetails = {}) => {
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      const orderPayload = {
+        customer_name: formData.customer_name.trim(),
+        customer_phone: formData.customer_phone.trim(),
+        customer_email: formData.customer_email.trim() || undefined,
+        customer_address: formData.customer_address.trim(),
+        notes: formData.notes.trim() || undefined,
+        payment_method: paymentDetails.payment_method || formData.payment_method,
+        payment_status: paymentDetails.payment_status || 'pending',
+        payment_ref: paymentDetails.payment_ref || undefined,
+        promoCode: appliedPromo?.code || undefined,
+        discountAmount: discountAmount || undefined,
+        items: cart.map((item) => ({
+          id: item._id || item.id,
+          name: item.name,
+          weight: item.weight || (item.customSpecs && item.customSpecs.weight) || '1.5 kg',
+          price: item.price,
+          quantity: item.quantity,
+          isCustom: Boolean(item.isCustom),
+          customSpecs: item.customSpecs || undefined,
+        })),
+        total_price: grandTotal,
+      };
+
+      const response = await orderApi.create(orderPayload);
+      const createdOrder = response.data.order;
+
+      setConfirmedOrder(createdOrder);
+      clearCart();
+      setAppliedPromo(null);
+      setPromoInput('');
+      setStep('success');
+      setIsPaymentModalOpen(false);
+    } catch (err) {
+      console.error('Order placement error:', err);
+      setErrorMessage(
+        err.response?.data?.error || t('cart.error_submit', 'Buyurtmani yuborishda xatolik yuz berdi. Iltimos, qayta urinib ko‘ring.')
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCheckoutSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -137,48 +222,17 @@ const CartDrawer = () => {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const orderPayload = {
-        customer_name: formData.customer_name.trim(),
-        customer_phone: formData.customer_phone.trim(),
-        customer_email: formData.customer_email.trim() || undefined,
-        customer_address: formData.customer_address.trim(),
-        notes: formData.notes.trim() || undefined,
-        payment_method: formData.payment_method,
-        promoCode: appliedPromo?.code || undefined,
-        discountAmount: discountAmount || undefined,
-        items: cart.map((item) => ({
-          id: item._id || item.id,
-          name: item.name,
-          weight: item.weight || (item.customSpecs && item.customSpecs.weight) || '1.5 kg',
-          price: item.price,
-          quantity: item.quantity,
-        })),
-        total_price: grandTotal,
-      };
-
-      const response = await orderApi.create(orderPayload);
-      const createdOrder = response.data.order;
-
-      setConfirmedOrder(createdOrder);
-      clearCart();
-      setAppliedPromo(null);
-      setPromoInput('');
-      setStep('success');
-
-      if (formData.payment_method !== 'cash') {
-        setIsPaymentModalOpen(true);
-      }
-    } catch (err) {
-      console.error('Order placement error:', err);
-      setErrorMessage(
-        err.response?.data?.error || t('cart.error_submit', 'Buyurtmani yuborishda xatolik yuz berdi. Iltimos, qayta urinib ko‘ring.')
-      );
-    } finally {
-      setLoading(false);
+    // If online payment (card / payme / click) -> Open Payment Modal FIRST
+    if (formData.payment_method !== 'cash') {
+      setIsPaymentModalOpen(true);
+      return;
     }
+
+    // If cash -> create directly
+    await processOrderCreation({
+      payment_method: 'cash',
+      payment_status: 'pending',
+    });
   };
 
   return (
@@ -485,9 +539,21 @@ const CartDrawer = () => {
 
                 {/* Address */}
                 <div>
-                  <label className="block text-xs font-semibold text-[#111827] dark:text-[#F3F4F6] mb-1">
-                    {t('cart.address', 'Yetkazib berish manzili')} *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-[#111827] dark:text-[#F3F4F6]">
+                      {t('cart.address', 'Yetkazib berish manzili')} *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleDetectLocation}
+                      disabled={detectingLocation}
+                      className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-[#2563EB] dark:text-[#93C5FD] text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      title="GPS orqali joriy joylashuvni aniqlash"
+                    >
+                      <MapPin className="w-3 h-3" />
+                      <span>{detectingLocation ? 'Aniqlanmoqda...' : '📍 Joylashuvimni aniqlash'}</span>
+                    </button>
+                  </div>
                   <div className="relative">
                     <MapPin className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-3 pointer-events-none" />
                     <textarea

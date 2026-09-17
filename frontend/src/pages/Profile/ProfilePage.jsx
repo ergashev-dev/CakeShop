@@ -31,6 +31,8 @@ import {
   Edit3,
   RotateCw,
   Star,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -104,6 +106,7 @@ const ProfilePage = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewHoverStar, setReviewHoverStar] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
+  const [reviewPhoto, setReviewPhoto] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
 
   // Check URL query parameters for auto-opening review modal (?tab=reviews&orderId=...)
@@ -446,7 +449,26 @@ const ProfilePage = () => {
     setReviewOrder(order);
     setReviewRating(5);
     setReviewComment('');
+    setReviewPhoto('');
     setIsReviewModalOpen(true);
+  };
+
+  const handleReviewPhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Faqat rasm faylini tanlang (JPG, PNG).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Rasm hajmi 5MB dan kichik bo‘lishi kerak.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setReviewPhoto(ev.target.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleReviewSubmit = async (e) => {
@@ -462,6 +484,7 @@ const ProfilePage = () => {
       await reviewApi.create({
         rating: reviewRating,
         comment: reviewComment.trim(),
+        photo: reviewPhoto || '',
         cakeId: firstCake?.cake || '',
         cakeName: firstCake?.name || 'Bol Tortlari',
         orderId: reviewOrder?.orderId || '',
@@ -470,6 +493,7 @@ const ProfilePage = () => {
       setIsReviewModalOpen(false);
       setReviewOrder(null);
       setReviewComment('');
+      setReviewPhoto('');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Sharh qoldirishda xatolik yuz berdi.');
     } finally {
@@ -1379,7 +1403,7 @@ const ProfilePage = () => {
                 </label>
                 <textarea
                   required
-                  rows={4}
+                  rows={3}
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
                   placeholder="Tort ta'mi, yetkazib berish xizmati va qandolat bezagi haqida samimiy fikringizni yozing..."
@@ -1387,10 +1411,66 @@ const ProfilePage = () => {
                 />
               </div>
 
+              {/* Photo / Camera upload */}
+              <div>
+                <label className="text-xs font-semibold text-stone-700 dark:text-stone-300 block mb-1.5">
+                  Tort rasmini qo‘shish (Ixtiyoriy)
+                </label>
+                {reviewPhoto ? (
+                  <div className="relative p-2.5 rounded-xl bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 flex items-center gap-3">
+                    <img
+                      src={reviewPhoto}
+                      alt="Tort rasmi"
+                      className="w-16 h-16 rounded-lg object-cover border border-stone-200 dark:border-stone-700 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Rasm biriktirildi
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setReviewPhoto('')}
+                        className="text-[11px] text-red-500 hover:underline mt-1 cursor-pointer flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" /> Rasmni o‘chirish
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Direct Camera Button */}
+                    <label className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 hover:border-amber-500 text-stone-700 dark:text-stone-300 text-xs font-semibold cursor-pointer transition-colors btn-press">
+                      <Camera className="w-4 h-4 text-amber-500" />
+                      <span>Rasmga olish</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleReviewPhotoSelect}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {/* Gallery Upload Button */}
+                    <label className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 hover:border-amber-500 text-stone-700 dark:text-stone-300 text-xs font-semibold cursor-pointer transition-colors btn-press">
+                      <ImageIcon className="w-4 h-4 text-blue-500" />
+                      <span>Galereyadan</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleReviewPhotoSelect}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
               <Button
                 type="submit"
                 loading={reviewLoading}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl shadow-md cursor-pointer"
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl shadow-md cursor-pointer btn-press"
               >
                 Sharhni yuborish
               </Button>

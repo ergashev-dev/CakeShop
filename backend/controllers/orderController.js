@@ -316,7 +316,7 @@ export const orderController = {
    */
   async getKitchenOrders(req, res) {
     try {
-      const orders = await Order.find({ status: ['confirmed', 'preparing'] });
+      const orders = await Order.find({ status: ['pending', 'confirmed', 'preparing'] }).sort({ createdAt: -1 });
       return res.json({ orders });
     } catch (error) {
       return res.status(500).json({ error: 'Oshxona buyurtmalarini yuklashda xatolik.' });

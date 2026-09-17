@@ -15,6 +15,7 @@ import SearchModal from './components/common/SearchModal';
 import AuthModal from './components/auth/AuthModal';
 import TelegramLinkModal from './components/telegram/TelegramLinkModal';
 import CookieConsentBanner from './components/common/CookieConsentBanner';
+import PermissionsModal from './components/common/PermissionsModal';
 import ScrollToTop from './utils/ScrollToTop';
 import AdminRoute from './routes/AdminRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -148,6 +149,9 @@ function AppContent() {
 
       {/* Cookie Consent Banner */}
       <CookieConsentBanner />
+
+      {/* Permissions Onboarding Modal */}
+      <PermissionsModal />
     </div>
   );
 }

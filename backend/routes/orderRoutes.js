@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { orderController } from '../controllers/orderController.js';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/authMiddleware.js';
-import { adminMiddleware, confectionerMiddleware, courierMiddleware } from '../middleware/adminMiddleware.js';
+import { adminMiddleware, confectionerMiddleware, courierMiddleware, staffMiddleware } from '../middleware/adminMiddleware.js';
 import { paymentLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
@@ -21,10 +21,10 @@ router.patch('/kitchen/:id', authMiddleware, confectionerMiddleware, orderContro
 router.get('/courier', authMiddleware, courierMiddleware, orderController.getCourierOrders);
 router.post('/courier/:id/deliver', authMiddleware, courierMiddleware, orderController.confirmDelivery);
 
-// Admin orders management
-router.get('/', authMiddleware, adminMiddleware, orderController.getAllOrders);
-router.get('/:id', authMiddleware, orderController.getOrderById);
-router.put('/:id/status', authMiddleware, adminMiddleware, orderController.updateStatus);
-router.patch('/:id/status', authMiddleware, adminMiddleware, orderController.updateStatus);
+// Staff & Admin orders management
+router.get('/', authMiddleware, staffMiddleware, orderController.getAllOrders);
+router.get('/:id', authMiddleware, staffMiddleware, orderController.getOrderById);
+router.put('/:id/status', authMiddleware, staffMiddleware, orderController.updateStatus);
+router.patch('/:id/status', authMiddleware, staffMiddleware, orderController.updateStatus);
 
 export default router;

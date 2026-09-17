@@ -31,6 +31,62 @@
   .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
     color: #F3F4F6;
   }
+
+  /* High contrast input & form typography */
+  input, textarea, select {
+    color: #17181A;
+  }
+
+  .dark input, .dark textarea, .dark select {
+    color: #F3F4F6;
+  }
+
+  /* Prevent white text on white input fields in any theme */
+  .bg-white input:not([type="checkbox"]):not([type="radio"]),
+  .bg-white textarea,
+  .bg-white select,
+  input.bg-white,
+  textarea.bg-white {
+    color: #17181A !important;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: #9CA3AF;
+  }
+
+  .dark input::placeholder, .dark textarea::placeholder {
+    color: #6B7280;
+  }
+
+  /* Browser autofill text color fix */
+  input:-webkit-autofill,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: #17181A !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  .dark input:-webkit-autofill,
+  .dark textarea:-webkit-autofill,
+  .dark select:-webkit-autofill {
+    -webkit-text-fill-color: #F3F4F6 !important;
+    -webkit-box-shadow: 0 0 0px 1000px #1F2228 inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+}
+
+/* Subtle micro-animations */
+.card-hover-lift {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-hover-lift:hover {
+  transform: translateY(-3px);
+}
+.btn-press {
+  transition: transform 0.15s ease;
+}
+.btn-press:active {
+  transform: scale(0.97);
 }
 
 /* Crisp Clean Scrollbar */

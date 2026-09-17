@@ -229,6 +229,14 @@ const AdminPage = () => {
         const statsRes = await adminApi.getStats(timeRange);
         if (statsRes.data?.stats) setStats(statsRes.data.stats);
         if (statsRes.data?.recentOrders) setOrders(statsRes.data.recentOrders);
+      } else {
+        // Staff: confectioner or courier can fetch all orders
+        try {
+          const ordRes = await orderApi.getAll();
+          setOrders(ordRes.data?.orders || []);
+        } catch (e) {
+          console.warn('Failed to load orders for staff:', e);
+        }
       }
 
       const [cakesRes, catRes] = await Promise.all([
@@ -751,7 +759,7 @@ const AdminPage = () => {
 
     if (isAdminRole) {
       items.push({ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard });
-      items.push({ id: 'orders', label: 'Buyurtmalar', icon: ShoppingBag, badge: stats.pendingOrders });
+      items.push({ id: 'orders', label: 'Buyurtmalar', icon: ShoppingBag, count: orders.length });
     }
 
     if (isConfectioner || isAdminRole) {
@@ -762,8 +770,15 @@ const AdminPage = () => {
       items.push({ id: 'courier', label: 'Kuryer Portali', icon: Truck, count: courierOrders.length });
     }
 
-    if (isAdminRole) {
+    if (isConfectioner || isCourier) {
+      items.push({ id: 'orders', label: 'Barcha Buyurtmalar', icon: ShoppingBag, count: orders.length });
+    }
+
+    if (isConfectioner || isAdminRole) {
       items.push({ id: 'cakes', label: 'Tortlar Katalogi', icon: Cake, count: cakes.length });
+    }
+
+    if (isAdminRole) {
       items.push({ id: 'categories', label: 'Kategoriyalar', icon: FolderTree, count: categories.length });
       items.push({ id: 'reviews', label: 'Mijozlar Sharhlari', icon: MessageSquare });
       items.push({ id: 'promos', label: 'Promokodlar', icon: Ticket });
@@ -782,7 +797,7 @@ const AdminPage = () => {
     }
 
     return items;
-  }, [isAdminRole, isConfectioner, isCourier, isSuperAdmin, stats, kitchenOrders, courierOrders, cakes, categories, bugs, staffList]);
+  }, [isAdminRole, isConfectioner, isCourier, isSuperAdmin, stats, orders, kitchenOrders, courierOrders, cakes, categories, bugs, staffList]);
 
   return (
     <div className="flex min-h-screen bg-[#F7F8FA] dark:bg-[#0F1012] text-[#17181A] dark:text-[#F3F4F6] font-sans antialiased">
@@ -1219,6 +1234,258 @@ const AdminPage = () => {
               </>
             )}
               </div>
+            </div>
+          )}
+
+          {/* ORDERS TAB (Barcha Buyurtmalar Boshqaruvi) */}
+          {activeTab === 'orders' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Header & Controls */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-lg font-bold">Barcha Buyurtmalar</h3>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 text-[#2563EB] text-xs font-bold">
+                      {filteredOrders.length} ta
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#6B7280] mt-0.5">
+                    Mijozlar buyurtmalari, yetkazish manzillari va to‘lov holatlari.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={RefreshCw}
+                  onClick={async () => {
+                    const res = await orderApi.getAll();
+                    setOrders(res.data?.orders || []);
+                    showToast('Buyurtmalar ro‘yxati yangilandi');
+                  }}
+                >
+                  Yangilash
+                </Button>
+              </div>
+
+              {/* Status Filter Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar text-xs">
+                {[
+                  { key: 'all', label: 'Barchasi', count: orders.length },
+                  { key: 'pending', label: 'Kutilmoqda', count: orders.filter((o) => o.status === 'pending').length },
+                  { key: 'confirmed', label: 'Tasdiqlangan', count: orders.filter((o) => o.status === 'confirmed').length },
+                  { key: 'preparing', label: 'Pishirilmoqda', count: orders.filter((o) => o.status === 'preparing').length },
+                  { key: 'ready', label: 'Tayyor', count: orders.filter((o) => o.status === 'ready').length },
+                  { key: 'delivering', label: 'Yetkazilmoqda', count: orders.filter((o) => o.status === 'delivering').length },
+                  { key: 'delivered', label: 'Yetkazildi', count: orders.filter((o) => o.status === 'delivered').length },
+                  { key: 'cancelled', label: 'Bekor qilingan', count: orders.filter((o) => o.status === 'cancelled').length },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setOrderStatusFilter(tab.key)}
+                    className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                      orderStatusFilter === tab.key
+                        ? 'bg-[#2563EB] text-white shadow-xs'
+                        : 'bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] text-[#4B5563] dark:text-[#9CA3AF] hover:text-[#17181A]'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      orderStatusFilter === tab.key ? 'bg-white/25 text-white' : 'bg-[#E7E9ED] dark:bg-[#282B33] text-[#6B7280]'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Box */}
+              <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-4 shadow-card">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Buyurtma ID (#1002), mijoz ismi, telefon raqami yoki manzil bo‘yicha qidiruv..."
+                    value={orderSearchQuery}
+                    onChange={(e) => setOrderSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1F2227] text-xs outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Orders List / Cards */}
+              {filteredOrders.length === 0 ? (
+                <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-16 text-center text-xs text-[#6B7280] shadow-card">
+                  <ShoppingBag className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3 opacity-50" />
+                  <h4 className="text-base font-bold">Mos buyurtmalar topilmadi</h4>
+                  <p className="text-xs text-[#6B7280] mt-1">Qidiruv yoki filtrlarni o‘zgartirib ko‘ring.</p>
+                </div>
+              ) : (
+                <>
+                  {/* MOBILE VIEW: Cards */}
+                  <div className="sm:hidden space-y-3">
+                    {filteredOrders.map((ord) => (
+                      <div
+                        key={ord._id}
+                        className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-4 shadow-card space-y-3 card-hover-lift"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono font-bold text-[#2563EB] text-xs">#{ord.orderId}</span>
+                          <div>{getStatusBadge(ord.status)}</div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="font-bold text-sm text-[#111827] dark:text-[#F3F4F6]">
+                            {ord.customer_name}
+                          </div>
+                          <div className="text-xs text-[#6B7280] flex items-center gap-2">
+                            <a href={`tel:${ord.customer_phone}`} className="hover:underline text-[#2563EB] flex items-center gap-1">
+                              <Phone className="w-3 h-3" /> {ord.customer_phone}
+                            </a>
+                          </div>
+                          {ord.customer_address && (
+                            <div className="text-[11px] text-[#6B7280] flex items-start gap-1 pt-0.5">
+                              <MapPin className="w-3 h-3 text-[#2563EB] shrink-0 mt-0.5" />
+                              <span className="line-clamp-2">{ord.customer_address}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Items summary */}
+                        <div className="p-2.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1E2026] text-xs space-y-1">
+                          {ord.items?.map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-[11px]">
+                              <span className="truncate max-w-[180px]">{item.name} x{item.quantity || 1}</span>
+                              <span className="font-semibold">{formatPrice(item.price * (item.quantity || 1))}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-[#E7E9ED]/60 dark:border-[#272A30]/60">
+                          <div>
+                            <span className="text-[10px] text-[#6B7280] block">To‘lov</span>
+                            <span className="uppercase font-bold text-[10px] px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#2563EB]">
+                              {ord.payment_method}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] text-[#6B7280] block">Jami Summa</span>
+                            <span className="font-black text-sm text-[#17181A] dark:text-[#F3F4F6]">
+                              {formatPrice(ord.total)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-2 border-t border-[#E7E9ED]/60 dark:border-[#272A30]/60">
+                          <div className="flex-1">
+                            <CustomSelect
+                              value={ord.status}
+                              onChange={(val) => handleStatusChange(ord.orderId, val)}
+                              size="sm"
+                              options={[
+                                { value: 'pending', label: 'Kutilmoqda' },
+                                { value: 'confirmed', label: 'Tasdiqlandi' },
+                                { value: 'preparing', label: 'Pishirilmoqda' },
+                                { value: 'ready', label: 'Tayyor' },
+                                { value: 'delivering', label: 'Yetkazilmoqda' },
+                                { value: 'delivered', label: 'Yetkazildi' },
+                                { value: 'cancelled', label: 'Bekor qilindi' },
+                              ]}
+                            />
+                          </div>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={Eye}
+                            onClick={() => setSelectedOrderDetails(ord)}
+                          >
+                            Batafsil
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* DESKTOP VIEW: Full Table */}
+                  <div className="hidden sm:block bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-6 shadow-card">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs min-w-[750px]">
+                        <thead>
+                          <tr className="border-b border-[#E7E9ED] dark:border-[#272A30] text-[#6B7280] bg-[#F9FAFB] dark:bg-[#1A1C22]">
+                            <th className="px-4 py-3 font-semibold whitespace-nowrap">ID</th>
+                            <th className="px-4 py-3 font-semibold whitespace-nowrap">Mijoz & Telefon</th>
+                            <th className="px-4 py-3 font-semibold whitespace-nowrap">Manzil</th>
+                            <th className="px-4 py-3 font-semibold whitespace-nowrap">Mahsulotlar</th>
+                            <th className="px-4 py-3 font-semibold whitespace-nowrap">Summa & To‘lov</th>
+                            <th className="px-4 py-3 font-semibold whitespace-nowrap">Holat</th>
+                            <th className="px-4 py-3 font-semibold text-right whitespace-nowrap">Amal</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E7E9ED]/50 dark:divide-[#272A30]/50">
+                          {filteredOrders.map((ord) => (
+                            <tr key={ord._id} className="hover:bg-[#F7F8FA] dark:hover:bg-[#1E2026] transition-colors">
+                              <td className="px-4 py-3.5 font-mono font-bold text-[#2563EB] whitespace-nowrap">
+                                #{ord.orderId}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <div className="font-semibold text-[#111827] dark:text-[#F3F4F6] max-w-[140px] truncate" title={ord.customer_name}>
+                                  {ord.customer_name}
+                                </div>
+                                <a href={`tel:${ord.customer_phone}`} className="text-[#6B7280] hover:underline text-[11px]">
+                                  {ord.customer_phone}
+                                </a>
+                              </td>
+                              <td className="px-4 py-3.5 max-w-[160px] truncate text-[#6B7280]" title={ord.customer_address}>
+                                {ord.customer_address || '-'}
+                              </td>
+                              <td className="px-4 py-3.5 text-[#4B5563] dark:text-[#9CA3AF] max-w-[180px] truncate">
+                                {ord.items?.map((i) => `${i.name} (${i.quantity || 1})`).join(', ') || '-'}
+                              </td>
+                              <td className="px-4 py-3.5 whitespace-nowrap">
+                                <div className="font-black text-[#17181A] dark:text-[#F3F4F6]">
+                                  {formatPrice(ord.total)}
+                                </div>
+                                <span className="uppercase font-bold text-[9px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                  {ord.payment_method}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 whitespace-nowrap">
+                                {getStatusBadge(ord.status)}
+                              </td>
+                              <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-2">
+                                  <div className="w-32 text-left">
+                                    <CustomSelect
+                                      value={ord.status}
+                                      onChange={(val) => handleStatusChange(ord.orderId, val)}
+                                      size="sm"
+                                      options={[
+                                        { value: 'pending', label: 'Kutilmoqda' },
+                                        { value: 'confirmed', label: 'Tasdiqlandi' },
+                                        { value: 'preparing', label: 'Pishirilmoqda' },
+                                        { value: 'ready', label: 'Tayyor' },
+                                        { value: 'delivering', label: 'Yetkazilmoqda' },
+                                        { value: 'delivered', label: 'Yetkazildi' },
+                                        { value: 'cancelled', label: 'Bekor qilindi' },
+                                      ]}
+                                    />
+                                  </div>
+                                  <button
+                                    onClick={() => setSelectedOrderDetails(ord)}
+                                    className="p-1.5 rounded-lg border border-[#E7E9ED] dark:border-[#272A30] hover:bg-[#F7F8FA] dark:hover:bg-[#202328] text-[#4B5563] dark:text-[#9CA3AF] cursor-pointer"
+                                    title="Tafsilotlar"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
