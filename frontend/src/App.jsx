@@ -54,7 +54,14 @@ function AppContent() {
           window.history.replaceState({}, document.title, cleanUrl);
         });
     } else if (authError) {
-      toast.error('Kirishda xatolik', 'Google orqali kirish amalga oshmadi.');
+      if (authError === 'google_not_configured') {
+        toast.info(
+          'Google OAuth sozlanmoqda',
+          'Google Cloud Console orqali Client ID va Secret kalitlari ulanishi kerak.'
+        );
+      } else {
+        toast.error('Kirishda xatolik', 'Google orqali kirish amalga oshmadi.');
+      }
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
     }

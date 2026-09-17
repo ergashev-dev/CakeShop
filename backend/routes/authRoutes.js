@@ -14,7 +14,13 @@ router.post('/login', loginLimiter, authController.login);
 router.post('/logout', authController.logout);
 
 // Google OAuth Authentication
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'dummy_client_id') {
+    const clientUrl = process.env.CLIENT_URL || 'https://boltortlar.uz';
+    return res.redirect(`${clientUrl}/?auth_error=google_not_configured`);
+  }
+  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+});
 router.get('/google/callback', authController.googleCallback);
 router.post('/google/token', authController.googleTokenLogin);
 
