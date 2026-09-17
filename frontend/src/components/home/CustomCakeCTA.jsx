@@ -65,9 +65,9 @@ const CustomCakeCTA = () => {
 
             {/* Right Card / Visual */}
             <div className="lg:col-span-5">
-              <div className="rounded-2xl overflow-hidden border border-[#E7E9ED] dark:border-[#272A30] shadow-card bg-[#F7F8FA] dark:bg-[#1F2227] p-5.5 card-interactive hover:border-amber-400/40">
+              <div className="rounded-2xl overflow-hidden border border-[#E7E9ED] dark:border-[#272A30] shadow-card bg-[#F7F8FA] dark:bg-[#1F2227] p-5 sm:p-6 card-interactive hover:border-amber-400/40">
                 <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[#E7E9ED] dark:border-[#2E3138]">
-                  <span className="text-xs font-bold text-[#17181A] dark:text-[#F3F4F6]">Individual Buyurtma Namunasi</span>
+                  <span className="text-xs sm:text-sm font-bold text-[#111827] dark:text-[#F3F4F6]">Individual Buyurtma Namunasi</span>
                   <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200/60 dark:border-emerald-800/60">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
