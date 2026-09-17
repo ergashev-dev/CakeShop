@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Soft Glow / Circle Background -->
+  <circle cx="50" cy="50" r="48" fill="#FAF8F5" stroke="#C98D42" stroke-width="2"/>
+  
+  <!-- Cake Base Plate -->
+  <ellipse cx="50" cy="74" rx="32" ry="5" fill="#E2D3C7" stroke="#B07530" stroke-width="1.5"/>
+  
+  <!-- Cake Bottom Layer -->
+  <path d="M26 56 C26 56, 26 70, 50 70 C74 70, 74 56, 74 56 L74 64 C74 68, 63 71, 50 71 C37 71, 26 68, 26 64 Z" fill="#C98D42"/>
+  
+  <!-- Cake Middle Cream Frosting Drip -->
+  <path d="M26 56 C26 56, 32 60, 38 56 C44 52, 50 59, 56 55 C62 51, 68 58, 74 56 L74 50 C74 46, 63 43, 50 43 C37 43, 26 46, 26 50 Z" fill="#FAF8F5" stroke="#ECCFA9" stroke-width="1"/>
+  
+  <!-- Cake Top Layer -->
+  <path d="M34 44 C34 44, 34 50, 50 50 C66 50, 66 44, 66 44 L66 38 C66 34, 59 32, 50 32 C41 32, 34 34, 34 38 Z" fill="#B07530"/>
+  
+  <!-- Top Frosting Cream -->
+  <ellipse cx="50" cy="35" rx="16" ry="5" fill="#FAF8F5" stroke="#C98D42" stroke-width="1"/>
+  
+  <!-- Candle -->
+  <rect x="48.5" y="22" width="3" height="11" rx="1.5" fill="#C98D42"/>
+  
+  <!-- Flame -->
+  <path d="M50 14 C51.5 17, 53 19, 50 22 C47 19, 48.5 17, 50 14 Z" fill="#D5994E"/>
+  <circle cx="50" cy="19" r="1.5" fill="#FFF"/>
+
+  <!-- Sparkles -->
+  <path d="M20 28 L22 32 L26 34 L22 36 L20 40 L18 36 L14 34 L18 32 Z" fill="#C98D42" opacity="0.75"/>
+  <path d="M80 34 L81.5 37 L84.5 38.5 L81.5 40 L80 43 L78.5 40 L75.5 38.5 L78.5 37 Z" fill="#C98D42" opacity="0.6"/>
+</svg>

@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables & secrets (CRITICAL: NEVER COMMIT)
+.env
+.env.*
+!.env.example
+*.env
+*.env.*
+
+# Local databases & storage
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/mongodb
+*.sqlite
+*.sqlite3
+
+# Production builds & cache
+dist/
+frontend/dist/
+dist-ssr/
+.vercel
+.next
+.cache
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor & System files
+.DS_Store
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+thumbs.db

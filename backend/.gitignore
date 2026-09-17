@@ -1,0 +1,10 @@
+node_modules
+.env
+.env.*
+!.env.example
+dist
+*.log
+data/mongodb
+data/*.db
+data/*.db-shm
+data/*.db-wal

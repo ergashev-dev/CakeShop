@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #17181A;
+    background-color: #F7F8FA;
+    scroll-behavior: smooth;
+  }
+
+  .dark html {
+    color: #F3F4F6;
+    background-color: #0F1012;
+  }
+
+  body {
+    background-color: #F7F8FA;
+  }
+
+  .dark body {
+    background-color: #0F1012;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: #17181A;
+    font-weight: 600;
+  }
+
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    color: #F3F4F6;
+  }
+}
+
+/* Crisp Clean Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4B5563;
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Premium Dark Mode Box Shadows - eliminates dirty/muddy dark glow and adds crisp border elevation */
+.dark .shadow-subtle,
+.dark .shadow-card,
+.dark .shadow-xs,
+.dark .shadow-sm,
+.dark .shadow,
+.dark .shadow-md,
+.dark .shadow-lg {
+  box-shadow: none !important;
+}
+
+.dark .shadow-hover:hover {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45) !important;
+}
+
+.dark .shadow-dropdown,
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+}
