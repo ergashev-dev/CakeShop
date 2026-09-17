@@ -220,6 +220,8 @@ const migrations = [
   "ALTER TABLE users ADD COLUMN telegramId TEXT",
   "ALTER TABLE users ADD COLUMN telegramLinkToken TEXT",
   "ALTER TABLE users ADD COLUMN telegramLinkExpires TEXT",
+  "ALTER TABLE users ADD COLUMN googleId TEXT",
+  "ALTER TABLE users ADD COLUMN authProvider TEXT DEFAULT 'local'",
   "ALTER TABLE settings ADD COLUMN mandatoryChannel TEXT DEFAULT ''",
   "ALTER TABLE settings ADD COLUMN isMandatorySubEnabled INTEGER DEFAULT 0",
 ];

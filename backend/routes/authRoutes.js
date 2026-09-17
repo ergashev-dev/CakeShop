@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authController } from '../controllers/authController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { loginLimiter, resendCodeLimiter, authActionLimiter } from '../middleware/rateLimiter.js';
+import passport from 'passport';
 
 const router = Router();
 
@@ -11,6 +12,11 @@ router.post('/verify-email', authController.verifyEmail);
 router.post('/resend-code', resendCodeLimiter, authController.resendCode);
 router.post('/login', loginLimiter, authController.login);
 router.post('/logout', authController.logout);
+
+// Google OAuth Authentication
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google/callback', authController.googleCallback);
+router.post('/google/token', authController.googleTokenLogin);
 
 // Password recovery
 router.post('/forgot-password', authActionLimiter, authController.forgotPassword);

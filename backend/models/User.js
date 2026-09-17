@@ -16,7 +16,9 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-    password: { type: String, required: true, minlength: 6 },
+    password: { type: String, default: '' },
+    googleId: { type: String, default: null, index: true },
+    authProvider: { type: String, enum: ['local', 'google'], default: 'local' },
     phone: { type: String, trim: true, default: '' },
     role: {
       type: String,
@@ -102,6 +104,10 @@ class UserProxy {
     }
     if (filter.telegramId) {
       const row = sqlite.prepare('SELECT * FROM users WHERE telegramId = ?').get(filter.telegramId.toString());
+      return wrapDoc('users', row);
+    }
+    if (filter.googleId) {
+      const row = sqlite.prepare('SELECT * FROM users WHERE googleId = ?').get(filter.googleId.toString());
       return wrapDoc('users', row);
     }
     if (filter.telegramLinkToken) {

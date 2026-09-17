@@ -33,8 +33,8 @@ class TelegramBotService {
     this.botInfo = null;
     this.token = process.env.TELEGRAM_BOT_TOKEN || '8714053884:AAEv-s1LNqPic310IIoKhkl-6alhUjdvmzc';
     this.adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '1897925266';
-    this.clientUrl = process.env.CLIENT_URL || 'https://frontend-eta-nine-90.vercel.app';
-    this.defaultWebAppUrl = 'https://frontend-eta-nine-90.vercel.app';
+    this.clientUrl = process.env.CLIENT_URL || 'https://boltortlar.uz';
+    this.defaultWebAppUrl = 'https://boltortlar.uz';
     this.adminSessions = new Map(); // telegramId -> { step, data }
     this.loginSessions = new Map(); // telegramId -> { step, login }
   }

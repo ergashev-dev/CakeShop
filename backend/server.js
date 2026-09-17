@@ -20,6 +20,7 @@ import cookieParser from 'cookie-parser';
 import { connectMongoDB } from './config/mongodb.js';
 import { socketService } from './services/socketService.js';
 import { telegramBotService } from './services/telegramBotService.js';
+import passport, { configurePassport } from './config/passport.js';
 
 import authRoutes from './routes/authRoutes.js';
 import cakeRoutes from './routes/cakeRoutes.js';
@@ -56,6 +57,9 @@ app.use(
 app.use(
   cors({
     origin: [
+      'https://boltortlar.uz',
+      'https://www.boltortlar.uz',
+      'https://frontend-eta-nine-90.vercel.app',
       'http://localhost:5173',
       'http://127.0.0.1:5173',
       process.env.CLIENT_URL,
@@ -67,6 +71,10 @@ app.use(
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Initialize Passport
+configurePassport();
+app.use(passport.initialize());
 
 // API Routes
 app.use('/api/auth', authRoutes);

@@ -89,6 +89,23 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const loginWithToken = async (newToken) => {
+    localStorage.setItem('bol_tortlari_token', newToken);
+    setToken(newToken);
+    try {
+      const res = await authApi.getMe();
+      setUser(res.data.user);
+      socketClient.connect();
+      return res.data.user;
+    } catch (err) {
+      console.error('Failed to load user with token', err);
+      localStorage.removeItem('bol_tortlari_token');
+      setToken(null);
+      setUser(null);
+      throw err;
+    }
+  };
+
   const refreshUser = async () => {
     try {
       const res = await authApi.getMe();
@@ -123,6 +140,7 @@ export const AuthProvider = ({ children }) => {
         isConfectioner,
         isCourier,
         login,
+        loginWithToken,
         register,
         verifyEmail,
         resendCode,

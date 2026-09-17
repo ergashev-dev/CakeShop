@@ -17,7 +17,7 @@ import TelegramLinkModal from './components/telegram/TelegramLinkModal';
 import CookieConsentBanner from './components/common/CookieConsentBanner';
 import ScrollToTop from './utils/ScrollToTop';
 import AdminRoute from './routes/AdminRoute';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider, useToast } from './context/ToastContext';
@@ -25,11 +25,40 @@ import socketClient from './services/socket';
 
 function AppContent() {
   const { toast } = useToast();
+  const { loginWithToken } = useAuth();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isTelegramOpen, setIsTelegramOpen] = useState(false);
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Handle Google OAuth / URL Auth Token callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authToken = params.get('auth_token');
+    const authError = params.get('error') || params.get('auth_error');
+
+    if (authToken) {
+      loginWithToken(authToken)
+        .then((userData) => {
+          toast.success(
+            `Xush kelibsiz, ${userData?.name || 'foydalanuvchi'}!`,
+            'Google orqali tizimga muvaffaqiyatli kirdingiz.'
+          );
+        })
+        .catch(() => {
+          toast.error('Kirishda xatolik yuz berdi', 'Iltimos, qaytadan urinib ko\'ring.');
+        })
+        .finally(() => {
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        });
+    } else if (authError) {
+      toast.error('Kirishda xatolik', 'Google orqali kirish amalga oshmadi.');
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, [loginWithToken, toast]);
 
   // Realtime Delivery Celebration & Review Prompt
   useEffect(() => {

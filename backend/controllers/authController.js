@@ -7,6 +7,7 @@ import VerificationCode from '../models/VerificationCode.js';
 import PasswordReset from '../models/PasswordReset.js';
 import { emailService } from '../services/emailService.js';
 import { telegramBotService } from '../services/telegramBotService.js';
+import passport from 'passport';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'boltortlari_super_secret_jwt_key_2026_luxury';
 const JWT_EXPIRES_IN = '7d';
@@ -767,6 +768,85 @@ export const authController = {
     } catch (error) {
       console.error('Unlink telegram error:', error);
       return res.status(500).json({ error: 'Telegram hisobini ajratishda xatolik.' });
+    }
+  },
+
+  /**
+   * Google OAuth Callback
+   */
+  googleCallback(req, res, next) {
+    passport.authenticate('google', { session: false }, (err, user, info) => {
+      const clientBase = process.env.CLIENT_URL || 'https://boltortlar.uz';
+      if (err || !user) {
+        console.error('Google auth callback error:', err || info);
+        return res.redirect(`${clientBase}/?error=google_auth_failed`);
+      }
+
+      const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
+        expiresIn: JWT_EXPIRES_IN,
+      });
+
+      setAuthCookie(res, token);
+      return res.redirect(`${clientBase}/?auth_token=${token}`);
+    })(req, res, next);
+  },
+
+  /**
+   * Google ID Token / One-Tap Login
+   */
+  async googleTokenLogin(req, res) {
+    try {
+      const { email, name, avatar, googleId } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email manzili talab qilinadi.' });
+      }
+
+      const cleanEmail = email.toLowerCase().trim();
+      let user = await User.findOne({
+        $or: [{ email: cleanEmail }, { googleId }],
+      });
+
+      if (user) {
+        if (!user.googleId && googleId) user.googleId = googleId;
+        user.authProvider = 'google';
+        user.isVerified = true;
+        if (!user.avatar && avatar) user.avatar = avatar;
+        user.lastLogin = new Date();
+        await user.save();
+      } else {
+        const baseUsername = (name || 'user').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+        const username = `${baseUsername || 'mijoz'}_${Math.floor(1000 + Math.random() * 9000)}`;
+        const randomPassword = crypto.randomBytes(16).toString('hex');
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+        user = await User.create({
+          name: name || 'Google Foydalanuvchisi',
+          username,
+          email: cleanEmail,
+          password: hashedPassword,
+          googleId: googleId || null,
+          authProvider: 'google',
+          avatar: avatar || '',
+          role: 'user',
+          isVerified: true,
+          walletBalance: 0,
+          lastLogin: new Date(),
+        });
+      }
+
+      const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
+        expiresIn: JWT_EXPIRES_IN,
+      });
+
+      setAuthCookie(res, token);
+      return res.json({
+        message: 'Google hisobingiz orqali muvaffaqiyatli kirdingiz!',
+        token,
+        user: user.toJSON(),
+      });
+    } catch (err) {
+      console.error('googleTokenLogin error:', err);
+      return res.status(500).json({ error: 'Google orqali kirishda xatolik yuz berdi.' });
     }
   },
 };
