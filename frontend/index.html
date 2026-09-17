@@ -45,7 +45,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Schema.org JSON-LD Structured Data: Bakery & Store -->
+    <!-- Geo Location Tags for Local SEO (Tashkent & Fergana) -->
+    <meta name="geo.region" content="UZ" />
+    <meta name="geo.placename" content="Toshkent, Farg'ona, Uchko'prik" />
+    <meta name="geo.position" content="40.5401;70.9205" />
+    <meta name="ICBM" content="40.5401, 70.9205" />
+
+    <!-- Schema.org JSON-LD Structured Data: Bakery, WebSite, Breadcrumbs & FAQ -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -53,11 +59,12 @@
         {
           "@type": "Bakery",
           "@id": "https://boltortlar.uz/#bakery",
-          "name": "Bol Tortlari",
+          "name": "Bol Tortlari — Qandolatxonasi",
+          "alternateName": ["Bol Tortlar", "Bol Tortlari", "Boltortlar"],
           "url": "https://boltortlar.uz",
           "logo": "https://boltortlar.uz/cake-logo.svg",
           "image": "https://boltortlar.uz/og-image.jpg",
-          "description": "O'zbekistonda eng mazali va sifatli tabiiy tortlar va shirinliklar tayyorlash hamda yetkazib berish xizmati.",
+          "description": "Bol Tortlari — O'zbekistonda eng mazali va sifatli tabiiy tortlar, to'y va tug'ilgan kun tortlari hamda shirinliklar buyurtmasi.",
           "telephone": "+998901234567",
           "priceRange": "$$",
           "servesCuisine": "Pastry, Cakes, Desserts, Confectionery",
@@ -77,15 +84,7 @@
           "openingHoursSpecification": [
             {
               "@type": "OpeningHoursSpecification",
-              "dayOfWeek": [
-                "Monday",
-                "Tuesday",
-                "Wednesday",
-                "Thursday",
-                "Friday",
-                "Saturday",
-                "Sunday"
-              ],
+              "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
               "opens": "09:00",
               "closes": "21:00"
             }
@@ -96,51 +95,6 @@
             "reviewCount": "320",
             "bestRating": "5",
             "worstRating": "1"
-          },
-          "hasOfferCatalog": {
-            "@type": "OfferCatalog",
-            "name": "Tortlar Katalogi",
-            "itemListElement": [
-              {
-                "@type": "Offer",
-                "itemOffered": {
-                  "@type": "Product",
-                  "name": "Limonli Meringue Tort",
-                  "category": "Premium tortlar",
-                  "offers": {
-                    "@type": "Offer",
-                    "price": "210000",
-                    "priceCurrency": "UZS"
-                  }
-                }
-              },
-              {
-                "@type": "Offer",
-                "itemOffered": {
-                  "@type": "Product",
-                  "name": "Qulupnayli Shohona Fraisier",
-                  "category": "Premium tortlar",
-                  "offers": {
-                    "@type": "Offer",
-                    "price": "320000",
-                    "priceCurrency": "UZS"
-                  }
-                }
-              },
-              {
-                "@type": "Offer",
-                "itemOffered": {
-                  "@type": "Product",
-                  "name": "Belgiya Shokoladli Truffle",
-                  "category": "Klassik shirinliklar",
-                  "offers": {
-                    "@type": "Offer",
-                    "price": "290000",
-                    "priceCurrency": "UZS"
-                  }
-                }
-              }
-            ]
           }
         },
         {
@@ -153,13 +107,73 @@
             "target": "https://boltortlar.uz/cakes?search={search_term_string}",
             "query-input": "required name=search_term_string"
           }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://boltortlar.uz/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Bol tortlariga qanday buyurtma berish mumkin?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "boltortlar.uz saytida katalogdan o'zingizga yoqqan tortni tanlab 'Savatga qo'shish' tugmasini bosing yoki 'Maxsus tort' bo'limida o'z xohishingizdagi tortni yig'ib onlayn buyurtma bering."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Yetkazib berish xizmati qancha vaqt oladi?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Tayyor standart tortlar 1-2 soat ichida, maxsus buyurtma asosida tayyorlanadigan to'y va marosim tortlari esa belgilangan sana va vaqtga aniq yetkazib beriladi."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Bol tortlarida qanday masalliqlardan foydalaniladi?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Faqat 100% tabiiy va sifatli masalliqlar: toza sariyog' (82.5%), tabiiy qaymoq, Belgiya shokoladi va yangi saralangan mevalardan foydalaniladi."
+              }
+            }
+          ]
         }
       ]
     }
     </script>
   </head>
   <body class="bg-[#F7F8FA] dark:bg-[#0F1012] text-[#17181A] dark:text-[#F3F4F6] font-sans antialiased selection:bg-[#2563EB] selection:text-white transition-colors duration-200">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Semantic SEO Pre-rendered Content for Search Engine Crawlers (Googlebot, Yandex) -->
+      <noscript>
+        <header>
+          <h1>Bol Tortlari — Toshkent va Farg'onada Eng Mazali Tortlar Buyurtmasi</h1>
+          <p>O'zbekistonda professional qandolatchilar tomonidan tayyorlanadigan eng sara tortlar, to'y tortlari, tug'ilgan kun tortlari va shirinliklar.</p>
+        </header>
+        <nav>
+          <ul>
+            <li><a href="/cakes">Tortlar Katalogi</a></li>
+            <li><a href="/custom-cake">Maxsus Tort Yaratish</a></li>
+            <li><a href="/favorites">Sevimli Tortlar</a></li>
+          </ul>
+        </nav>
+        <section>
+          <h2>Eng Mashhur Bol Tortlari</h2>
+          <ul>
+            <li><strong>Limonli Meringue Tort</strong> — Nafis limonli kurd va qarsildoq meringue bilan tayyorlangan shirinlik.</li>
+            <li><strong>Qulupnayli Shohona Fraisier</strong> — Yangi saralangan qulupnaylar va nafis diplomat kremi.</li>
+            <li><strong>Belgiya Shokoladli Truffle</strong> — 70% Belgiya qora shokoladi va nozik ganash qatlamlari.</li>
+            <li><strong>Shohona Asalli Medovik</strong> — Tog' asali bilan to'yingan 12 ta yupqa qatlam va smetanali krem.</li>
+            <li><strong>Pista va Malinali Velvet</strong> — Eron pista pastasi va nordon-shirin malina konfisi uyg'unligi.</li>
+          </ul>
+        </section>
+        <section>
+          <h2>Nega Aynan Bol Tortlari?</h2>
+          <p>10 yildan ortiq tajriba, 100% tabiiy mahsulotlar, sovutgichli avtomobillarda xavfsiz yetkazib berish va arzon narxlar.</p>
+          <p>Telefon: +998 (90) 123-45-67 | Manzil: Farg'ona viloyati, Uchko'prik tumani, Mustaqillik ko'chasi 12-uy</p>
+        </section>
+      </noscript>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
