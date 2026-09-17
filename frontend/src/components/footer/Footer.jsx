@@ -59,6 +59,11 @@ const Footer = () => {
                   {t('nav.about', 'Biz haqimizda va afzalliklar')}
                 </a>
               </li>
+              <li>
+                <a href="/#app" className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold hover:underline">
+                  <span>📱 Ilovani o‘rnatish (Android, iOS, Desktop)</span>
+                </a>
+              </li>
             </ul>
           </div>
 

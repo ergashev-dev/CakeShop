@@ -22,6 +22,7 @@ import {
   Home,
   Tag,
   Percent,
+  Smartphone,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useCart } from '../../context/CartContext';
@@ -29,6 +30,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import LanguageSelector from './LanguageSelector';
 import NotificationCenter from '../notifications/NotificationCenter';
+import InstallAppModal from '../common/InstallAppModal';
 
 const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
   const { t } = useTranslation();
@@ -41,6 +43,7 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const userMenuRef = useRef(null);
 
   useEffect(() => {
@@ -193,6 +196,17 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
               <div className="hidden sm:block">
                 <LanguageSelector />
               </div>
+
+              {/* Install App Button */}
+              <button
+                type="button"
+                onClick={() => setIsInstallModalOpen(true)}
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-700/50 text-xs font-bold transition-all cursor-pointer card-interactive active:scale-95 shadow-xs"
+                title="Ilovani o‘rnatish (Android, iOS, Desktop)"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-pulse-subtle" />
+                <span>Ilova</span>
+              </button>
 
               {/* Theme Toggle */}
               <button
@@ -359,6 +373,24 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
               </Link>
             ))}
 
+            {/* Mobile App Install Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsInstallModalOpen(true);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 font-bold text-xs border border-amber-200/60 dark:border-amber-700/40 cursor-pointer transition-colors hover:bg-amber-100"
+            >
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>Ilovani o‘rnatish (Android, iOS)</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200/60 dark:bg-amber-800/60 font-black">
+                Yuklash
+              </span>
+            </button>
+
             <div className="pt-2 border-t border-[#E5E7EB] dark:border-[#26282E] flex items-center justify-between px-3">
               <span className="text-xs text-[#6B7280]">Til / Язык / Lang:</span>
               <LanguageSelector variant="buttons" />
@@ -497,6 +529,9 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
           <span>{t('nav.cart', 'Savat')}</span>
         </button>
       </nav>
+
+      {/* PWA App Install Modal */}
+      <InstallAppModal isOpen={isInstallModalOpen} onClose={() => setIsInstallModalOpen(false)} />
     </>
   );
 };

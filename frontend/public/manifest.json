@@ -1,0 +1,42 @@
+{
+  "name": "Bol Tortlari — Toshkent va Farg'onada Premium Tortlar",
+  "short_name": "Bol Tortlari",
+  "description": "Toshkent va Farg'ona vodiysida eng sara va mazali tortlar buyurtmasi. 3D tort konstruktori va yetkazib berish xizmati.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#2563EB",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/cake-logo.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/cake-logo.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["shopping", "food", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Tortlar Katalogi",
+      "short_name": "Katalog",
+      "description": "Barcha premium tortlarni ko'rish",
+      "url": "/cakes",
+      "icons": [{ "src": "/cake-logo.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "3D Tort Konstruktori",
+      "short_name": "3D Tort",
+      "description": "O'z tortingizni 3D formatda yarating",
+      "url": "/custom-cake",
+      "icons": [{ "src": "/cake-logo.svg", "sizes": "192x192" }]
+    }
+  ]
+}

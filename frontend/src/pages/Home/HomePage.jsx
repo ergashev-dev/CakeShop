@@ -6,6 +6,7 @@ import CustomCakeCTA from '../../components/home/CustomCakeCTA';
 import HowItWorks from '../../components/home/HowItWorks';
 import Reviews from '../../components/home/Reviews';
 import DeliverySection from '../../components/home/DeliverySection';
+import AppInstallSection from '../../components/home/AppInstallSection';
 
 const HomePage = () => {
   return (
@@ -25,10 +26,13 @@ const HomePage = () => {
       {/* 5. How It Works (3 steps) */}
       <HowItWorks />
 
-      {/* 6. Customer Reviews */}
+      {/* 6. PWA Mobile & Desktop App Install Section */}
+      <AppInstallSection />
+
+      {/* 7. Customer Reviews */}
       <Reviews />
 
-      {/* 7. Delivery & Coverage */}
+      {/* 8. Delivery & Coverage */}
       <DeliverySection />
     </div>
   );

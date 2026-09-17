@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <meta name="theme-color" content="#2563EB" />
     
+    <!-- Progressive Web App (PWA) Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Bol Tortlari" />
+    <link rel="apple-touch-icon" href="/cake-logo.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/cake-logo.svg" />
+    
     <!-- Primary SEO Meta Tags -->
     <title>Bol Tortlari — Toshkent va Farg'onada Premium Tort Buyurtma Qilish | boltortlar.uz</title>
     <meta name="title" content="Bol Tortlari — Toshkent va Farg'onada Premium Tort Buyurtma Qilish | boltortlar.uz" />
@@ -179,5 +188,21 @@
       </noscript>
     </div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- Service Worker & PWA Install Listener -->
+    <script>
+      window.deferredPwaPrompt = null;
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.deferredPwaPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-ready-to-install'));
+      });
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function(err) {
+            console.log('PWA ServiceWorker error:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
