@@ -13,6 +13,8 @@ const settingsSchema = new mongoose.Schema(
     contactPhone: { type: String, default: '+998 (90) 123-45-67' },
     contactTelegram: { type: String, default: '@boltortlari_admin' },
     contactAddress: { type: String, default: 'Toshkent sh., Navoiy ko‘chasi 14' },
+    mandatoryChannel: { type: String, default: '' },
+    isMandatorySubEnabled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

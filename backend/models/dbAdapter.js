@@ -217,6 +217,11 @@ const migrations = [
   "ALTER TABLE orders ADD COLUMN assignedCourier TEXT DEFAULT ''",
   "ALTER TABLE orders ADD COLUMN kitchenNotes TEXT DEFAULT ''",
   "ALTER TABLE orders ADD COLUMN customCakeConfig_json TEXT DEFAULT '{}'",
+  "ALTER TABLE users ADD COLUMN telegramId TEXT",
+  "ALTER TABLE users ADD COLUMN telegramLinkToken TEXT",
+  "ALTER TABLE users ADD COLUMN telegramLinkExpires TEXT",
+  "ALTER TABLE settings ADD COLUMN mandatoryChannel TEXT DEFAULT ''",
+  "ALTER TABLE settings ADD COLUMN isMandatorySubEnabled INTEGER DEFAULT 0",
 ];
 
 for (const sql of migrations) {

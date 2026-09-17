@@ -722,16 +722,21 @@ export const authController = {
         return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
       }
 
-      const token = crypto.randomBytes(12).toString('hex');
+      // Generate secure 16-character hex token and 6-digit backup code
+      const token = crypto.randomBytes(8).toString('hex');
+      const backupCode = Math.floor(100000 + Math.random() * 900000).toString();
+
       user.telegramLinkToken = token;
-      user.telegramLinkExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+      // 48 hours validity
+      user.telegramLinkExpires = new Date(Date.now() + 48 * 60 * 60 * 1000);
       await user.save();
 
-      const botUsername = telegramBotService.botInfo?.username || 'bol_tortlari_bot';
+      const botUsername = process.env.TELEGRAM_BOT_USERNAME || telegramBotService.botInfo?.username || 'boltortlarbot';
       const link = `https://t.me/${botUsername}?start=connect_${token}`;
 
       return res.json({
         token,
+        backupCode,
         botUsername,
         link,
         telegramId: user.telegramId || null,

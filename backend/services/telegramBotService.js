@@ -33,18 +33,16 @@ class TelegramBotService {
     this.botInfo = null;
     this.token = process.env.TELEGRAM_BOT_TOKEN || '8714053884:AAEv-s1LNqPic310IIoKhkl-6alhUjdvmzc';
     this.adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '1897925266';
-    this.clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    this.loginSessions = new Map(); // telegramId -> { step: 'awaiting_login' | 'awaiting_password', login: '' }
+    this.clientUrl = process.env.CLIENT_URL || 'https://frontend-eta-nine-90.vercel.app';
+    this.defaultWebAppUrl = 'https://frontend-eta-nine-90.vercel.app';
+    this.adminSessions = new Map(); // telegramId -> { step, data }
+    this.loginSessions = new Map(); // telegramId -> { step, login }
   }
 
   getWebAppUrl() {
     if (process.env.TELEGRAM_WEBAPP_URL) return process.env.TELEGRAM_WEBAPP_URL;
     if (this.clientUrl && this.clientUrl.startsWith('https://')) return this.clientUrl;
-    return 'https://boltortlar.uz';
-  }
-
-  isHttps() {
-    return Boolean(this.clientUrl && this.clientUrl.startsWith('https://'));
+    return this.defaultWebAppUrl;
   }
 
   async isUserAdmin(telegramId) {
@@ -52,42 +50,6 @@ class TelegramBotService {
     if (telegramId.toString() === this.adminChatId.toString()) return true;
     const user = await User.findOne({ telegramId: telegramId.toString() });
     return Boolean(user && ['super_admin', 'superadmin', 'admin'].includes(user.role));
-  }
-
-  getUnlinkedKeyboard() {
-    return Markup.keyboard([
-      ['🔑 Botda tizimga kirish', '🔗 Sayt orqali ulash'],
-      [Markup.button.webApp('🚀 Web App (Mini App)', this.getWebAppUrl()), '📞 Aloqa & Manzil'],
-    ]).resize();
-  }
-
-  getMainKeyboard(isAdmin = false) {
-    const catalogBtn = '🎂 Tortlar Katalogi';
-    const webAppBtn = Markup.button.webApp('🚀 Web App', this.getWebAppUrl());
-
-    if (isAdmin) {
-      return Markup.keyboard([
-        [catalogBtn, '📦 Buyurtmalarim'],
-        ['❤️ Sevimlilar', '💰 Hamyon & Keshbek'],
-        ['⚙️ Admin Paneli', '👤 Shaxsiy Profil'],
-        [webAppBtn, '🚪 Hisobdan chiqish'],
-      ]).resize();
-    }
-
-    return Markup.keyboard([
-      [catalogBtn, '📦 Buyurtmalarim'],
-      ['❤️ Sevimlilar', '💰 Hamyon & Keshbek'],
-      ['👤 Shaxsiy Profil', '📞 Aloqa & Manzil'],
-      [webAppBtn, '🚪 Hisobdan chiqish'],
-    ]).resize();
-  }
-
-  getInlineWebButton(label, path = '') {
-    const fullUrl = `${this.clientUrl}${path}`;
-    if (this.isHttps()) {
-      return Markup.inlineKeyboard([[Markup.button.webApp(label, fullUrl)]]);
-    }
-    return null;
   }
 
   async getLinkedUser(telegramId) {
@@ -99,101 +61,68 @@ class TelegramBotService {
     return null;
   }
 
-  async requireAuth(ctx) {
-    const telegramId = ctx.from?.id?.toString();
-    const user = await this.getLinkedUser(telegramId);
-    if (user) {
-      return user;
+  /**
+   * Check mandatory channel subscription
+   * Returns true if user is subscribed or check is disabled
+   */
+  async checkChannelSubscription(ctx, telegramId) {
+    try {
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (isAdmin) return true;
+
+      const settings = await Settings.findOne();
+      if (!settings || !settings.isMandatorySubEnabled || !settings.mandatoryChannel) {
+        return true;
+      }
+
+      const channel = settings.mandatoryChannel.trim();
+      if (!channel) return true;
+
+      const chatMember = await ctx.telegram.getChatMember(channel, Number(telegramId));
+      const validStatuses = ['creator', 'administrator', 'member', 'restricted'];
+      if (validStatuses.includes(chatMember.status)) {
+        return true;
+      }
+
+      const channelUsername = channel.startsWith('@') ? channel.substring(1) : channel;
+      const channelLink = `https://t.me/${channelUsername}`;
+
+      await ctx.reply(
+        `📢 <b>Hurmatli foydalanuvchi!</b>\n\n` +
+          `Botdan foydalanish va buyurtma berish uchun rasmiy kanalimizga a’zo bo‘ling:\n` +
+          `👉 <b>${channel}</b>\n\n` +
+          `Kanalga obuna bo‘lgach, pastdagi «✅ Obunani tekshirish» tugmasini bosing:`,
+        {
+          parse_mode: 'HTML',
+          ...Markup.inlineKeyboard([
+            [Markup.button.url('➕ Kanalga a’zo bo‘lish', channelLink)],
+            [Markup.button.callback('✅ Obunani tekshirish', 'check_subscription')],
+          ]),
+        }
+      );
+      return false;
+    } catch (err) {
+      console.warn('Channel sub check warning:', err.message);
+      // Fail-open so users aren't blocked if bot has insufficient channel admin rights
+      return true;
     }
-
-    if (ctx.callbackQuery) {
-      try {
-        await ctx.answerCbQuery('🔒 Ushbu amal uchun avval hisobingizga kiring.', { show_alert: true });
-      } catch (e) {}
-    }
-
-    const lockMsg =
-      `🔒 <b>Ushbu bo‘limdan foydalanish uchun hisobingizga kiring!</b>\n\n` +
-      `Sizning Telegram profilingiz saytdagi hisobingizga hali ulanmagan.\n` +
-      `Barcha sara tortlar katalogi, buyurtmalarni kuzatish, sevimlilar va keshbek tizimi faqat tasdiqlangan foydalanuvchilar uchun ochiq.\n\n` +
-      `Quyidagi usullardan birini tanlang:\n` +
-      `1️⃣ <b>🔑 Botda tizimga kirish:</b> Botning o‘zida Login va Parolingizni kiritish;\n` +
-      `2️⃣ <b>🔗 Sayt orqali ulash:</b> Saytdagi profilingizdan bitta tugma orqali ulash;\n` +
-      `3️⃣ <b>🚀 Web App:</b> Telegram ichida to‘liq Mini Appni ochish.`;
-
-    await ctx.reply(lockMsg, {
-      parse_mode: 'HTML',
-      ...this.getUnlinkedKeyboard(),
-    });
-
-    return null;
   }
 
-  async processLogin(ctx, identifier, password) {
-    try {
-      const telegramId = ctx.from.id.toString();
-      const cleanId = (identifier || '').toLowerCase().trim();
+  getMainKeyboard(isAdmin = false) {
+    const webAppBtn = Markup.button.webApp('🛍️ Web App orqali buyurtma', this.getWebAppUrl());
 
-      const user = await User.findOne({
-        $or: [{ email: cleanId }, { username: cleanId }],
-      });
-
-      if (!user) {
-        return ctx.reply(
-          `❌ <b>Bunday foydalanuvchi topilmadi!</b>\n\n` +
-          `Kiritilgan email/username: <code>${cleanId}</code>\n\n` +
-          `Iltimos, tekshirib qaytadan urinib ko‘ring yoki saytdan ro‘yxatdan o‘ting:\n` +
-          `👉 ${this.clientUrl}/register`,
-          { parse_mode: 'HTML', ...this.getUnlinkedKeyboard() }
-        );
-      }
-
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return ctx.reply(
-          `❌ <b>Kiritilgan parol noto‘g‘ri!</b>\n\n` +
-          `Iltimos, qaytadan urinib ko‘ring yoki saytdan parolingizni tiklang:\n` +
-          `👉 ${this.clientUrl}/login`,
-          { parse_mode: 'HTML', ...this.getUnlinkedKeyboard() }
-        );
-      }
-
-      if (user.isBlocked) {
-        return ctx.reply(
-          `⛔ <b>Profilingiz bloklangan.</b> Qo‘llab-quvvatlash xizmati bilan bog‘laning.`,
-          { parse_mode: 'HTML', ...this.getUnlinkedKeyboard() }
-        );
-      }
-
-      // Link user to Telegram
-      user.telegramId = telegramId;
-      user.telegramLinkToken = null;
-      user.telegramLinkExpires = null;
-      user.lastLogin = new Date();
-      await user.save();
-
-      // Emit real-time update to web app
-      socketService.emitTelegramLinked(user._id.toString(), {
-        telegramId,
-        username: ctx.from.username || null,
-        firstName: ctx.from.first_name || user.name,
-      });
-
-      const isAdmin = ['super_admin', 'superadmin', 'admin'].includes(user.role) || telegramId === this.adminChatId;
-
-      return ctx.reply(
-        `🎉 <b>Xush kelibsiz, ${user.name}!</b>\n\n` +
-        `Sizning <b>${user.email}</b> hisobingiz ushbu Telegram botga muvaffaqiyatli ulandi.\n\n` +
-        `• <b>Rol:</b> <code>${user.role}</code>\n` +
-        `• <b>Hamyon:</b> ${(user.walletBalance || 0).toLocaleString()} so‘m\n` +
-        (isAdmin ? `• <b>Admin imkoniyatlari:</b> Faollashtirildi ⚡\n` : '') +
-        `\nEndi botdagi barcha sara tortlar katalogi, buyurtmalar va boshqaruv xizmatlari siz uchun to‘liq ochiq!`,
-        { parse_mode: 'HTML', ...this.getMainKeyboard(isAdmin) }
-      );
-    } catch (err) {
-      console.error('Process login error:', err);
-      ctx.reply('Tizimga kirishda xatolik yuz berdi. Qayta urinib ko‘ring.', this.getUnlinkedKeyboard());
+    if (isAdmin) {
+      return Markup.keyboard([
+        [webAppBtn],
+        ['📦 Buyurtmalarim', 'ℹ️ Biz haqimizda & Aloqa'],
+        ['⚙️ Admin Paneli'],
+      ]).resize();
     }
+
+    return Markup.keyboard([
+      [webAppBtn],
+      ['📦 Buyurtmalarim', 'ℹ️ Biz haqimizda & Aloqa'],
+    ]).resize();
   }
 
   async init() {
@@ -205,12 +134,10 @@ class TelegramBotService {
     try {
       this.bot = new Telegraf(this.token);
 
-      // Global error handler to keep bot alive at all times
       this.bot.catch((err, ctx) => {
         console.error(`Telegram Bot xatosi (${ctx?.updateType || 'unknown'}):`, err.message);
       });
 
-      // Fetch Bot Information
       this.botInfo = await this.bot.telegram.getMe();
       console.log(`🤖 Telegram Bot ulandi: @${this.botInfo.username} (${this.botInfo.first_name})`);
 
@@ -227,7 +154,6 @@ class TelegramBotService {
         console.warn('Chat menu button set warning:', menuErr.message);
       }
 
-      // Setup handlers
       this.setupHandlers();
 
       // Launch Bot polling
@@ -242,7 +168,6 @@ class TelegramBotService {
           console.error('Telegram bot polling xatosi:', err.message);
         });
 
-      // Graceful stop
       process.once('SIGINT', () => this.bot?.stop('SIGINT'));
       process.once('SIGTERM', () => this.bot?.stop('SIGTERM'));
     } catch (err) {
@@ -253,63 +178,132 @@ class TelegramBotService {
   setupHandlers() {
     if (!this.bot) return;
 
-    // 0. Middleware: Handle interactive login text input
+    // 0. Text handler for interactive sessions (Admin broadcast, Channel config)
     this.bot.on('text', async (ctx, next) => {
       const telegramId = ctx.from.id.toString();
       const text = ctx.message.text.trim();
 
-      if (text === '❌ Bekor qilish' || text === '/cancel') {
-        if (this.loginSessions.has(telegramId)) {
-          this.loginSessions.delete(telegramId);
-          const user = await this.getLinkedUser(telegramId);
-          const isAdmin = await this.isUserAdmin(telegramId);
-          return ctx.reply('Kirish jarayoni bekor qilindi.', user ? this.getMainKeyboard(isAdmin) : this.getUnlinkedKeyboard());
+      if (text === '/cancel' || text === '❌ Bekor qilish') {
+        if (this.adminSessions.has(telegramId)) {
+          this.adminSessions.delete(telegramId);
+          return ctx.reply('Jarayon bekor qilindi.', this.getMainKeyboard(true));
         }
       }
 
-      if (this.loginSessions.has(telegramId)) {
-        const session = this.loginSessions.get(telegramId);
-        if (session.step === 'awaiting_login') {
-          session.login = text;
-          session.step = 'awaiting_password';
+      // Check admin session
+      if (this.adminSessions.has(telegramId)) {
+        const session = this.adminSessions.get(telegramId);
+
+        // 1. Broadcast Message
+        if (session.step === 'awaiting_broadcast_message') {
+          session.messageText = text;
+          session.step = 'confirm_broadcast';
           return ctx.reply(
-            `2️⃣ Endi hisobingiz <b>Paroli</b>ni kiriting:\n\n` +
-            `<i>(Xavfsizlik maqsadida yuborgan xabaringiz o‘chirib yuboriladi)</i>\n\n` +
-            `❌ Bekor qilish uchun /cancel deb yozing.`,
+            `📢 <b>Xabar matni tayyor:</b>\n\n${text}\n\n` +
+              `Ushbu xabarni barcha ro‘yxatdan o‘tgan Telegram foydalanuvchilariga yuborishni tasdiqlaysizmi?`,
             {
               parse_mode: 'HTML',
-              ...Markup.keyboard([['❌ Bekor qilish']]).resize(),
+              ...Markup.inlineKeyboard([
+                [
+                  Markup.button.callback('✅ Ha, barchaga yuborilsin', 'confirm_broadcast_yes'),
+                  Markup.button.callback('❌ Bekor qilish', 'confirm_broadcast_no'),
+                ],
+              ]),
             }
           );
         }
 
-        if (session.step === 'awaiting_password') {
-          const password = text;
-          const identifier = session.login;
-          this.loginSessions.delete(telegramId);
-          try {
-            await ctx.deleteMessage(ctx.message.message_id);
-          } catch (e) {}
-          return this.processLogin(ctx, identifier, password);
+        // 2. Set Mandatory Channel
+        if (session.step === 'awaiting_channel_name') {
+          this.adminSessions.delete(telegramId);
+          let channel = text.trim();
+          if (!channel.startsWith('@') && !channel.startsWith('-100')) {
+            channel = '@' + channel;
+          }
+
+          let settings = await Settings.findOne();
+          if (!settings) settings = new Settings();
+          settings.mandatoryChannel = channel;
+          settings.isMandatorySubEnabled = true;
+          await settings.save();
+
+          return ctx.reply(
+            `✅ <b>Majburiy obuna kanali saqlandi va faollashtirildi!</b>\n\n` +
+              `• Kanal: <b>${channel}</b>\n` +
+              `• Holat: <b>🟢 Yoqilgan</b>\n\n` +
+              `<i>Eslatma: Bot ushbu kanalda administrator bo‘lishi tavsiya etiladi.</i>`,
+            {
+              parse_mode: 'HTML',
+              ...this.getMainKeyboard(true),
+            }
+          );
+        }
+      }
+
+      // If user sends 6-digit code or link code directly in chat
+      if (/^[a-zA-Z0-9_-]{6,32}$/.test(text)) {
+        const matchingUser = await User.findOne({ telegramLinkToken: text });
+        if (matchingUser) {
+          matchingUser.telegramId = telegramId;
+          matchingUser.telegramLinkToken = null;
+          matchingUser.telegramLinkExpires = null;
+          await matchingUser.save();
+
+          socketService.emitTelegramLinked(matchingUser._id.toString(), {
+            telegramId,
+            username: ctx.from.username || null,
+            firstName: ctx.from.first_name || matchingUser.name,
+          });
+
+          const isAdmin = await this.isUserAdmin(telegramId);
+          return ctx.reply(
+            `🎉 <b>Tabriklaymiz, ${matchingUser.name}!</b>\n\n` +
+              `Sizning saytdagi profilingiz (<code>${matchingUser.email}</code>) Telegram boti bilan muvaffaqiyatli ulandi!\n\n` +
+              `Endi barcha buyurtmalaringiz holati shu yerga keladi va siz Web App orqali tezda xarid qilishingiz mumkin.`,
+            {
+              parse_mode: 'HTML',
+              ...Markup.inlineKeyboard([
+                [Markup.button.webApp('🛍️ Tort Buyurtma Qilish', this.getWebAppUrl())],
+              ]),
+              ...this.getMainKeyboard(isAdmin),
+            }
+          );
         }
       }
 
       return next();
     });
 
-    // 1. /start command (supports deep link: /start connect_<token>)
+    // 1. /start command
     this.bot.start(async (ctx) => {
       try {
-        const payload = ctx.startPayload || '';
+        const payload = (ctx.startPayload || '').trim();
         const telegramId = ctx.from.id.toString();
         const userName = ctx.from.first_name || 'Hurmatli mijoz';
 
-        // Deep linking account connection from website
-        if (payload.startsWith('connect_')) {
-          const token = payload.replace('connect_', '').trim();
-          const user = await User.findOne({
-            telegramLinkToken: token,
-          });
+        // Deep linking account connection (/start connect_<token> or /start <token>)
+        if (payload) {
+          const token = payload.replace(/^connect_/, '').trim();
+          let user = await User.findOne({ telegramLinkToken: token });
+
+          // Also allow if user is already linked with this telegramId
+          if (!user) {
+            const alreadyLinked = await User.findOne({ telegramId });
+            if (alreadyLinked) {
+              const isAdmin = await this.isUserAdmin(telegramId);
+              return ctx.reply(
+                `✅ <b>Assalomu alaykum, ${alreadyLinked.name}!</b>\n\n` +
+                  `Sizning hisobingiz allaqachon botimizga ulangan. Web App orqali bemalol buyurtma berishingiz mumkin:`,
+                {
+                  parse_mode: 'HTML',
+                  ...Markup.inlineKeyboard([
+                    [Markup.button.webApp('🛍️ Tort Buyurtma Qilish (Web App)', this.getWebAppUrl())],
+                  ]),
+                  ...this.getMainKeyboard(isAdmin),
+                }
+              );
+            }
+          }
 
           if (user) {
             user.telegramId = telegramId;
@@ -317,59 +311,49 @@ class TelegramBotService {
             user.telegramLinkExpires = null;
             await user.save();
 
-            // Realtime Socket.IO notification to user's web page
             socketService.emitTelegramLinked(user._id.toString(), {
               telegramId,
               username: ctx.from.username || null,
               firstName: ctx.from.first_name || '',
             });
 
-            const userIsAdmin = ['super_admin', 'superadmin', 'admin'].includes(user.role) || telegramId === this.adminChatId;
-
+            const isAdmin = await this.isUserAdmin(telegramId);
             return ctx.reply(
               `🎉 <b>Tabriklaymiz, ${user.name}!</b>\n\n` +
-                `Sizning saytdagi profilingiz (<code>${user.email}</code>) Telegram hisobingizga muvaffaqiyatli ulandi.\n\n` +
-                `Endi siz:\n` +
-                `• Sara tortlar katalogidan tanlashingiz;\n` +
-                `• Buyurtmalaringiz holatini jonli kuzatishingiz;\n` +
-                `• Sevimli tortlaringizni boshqarishingiz;\n` +
-                `• Keshbek va maxsus takliflardan xabardor bo‘lishingiz mumkin!`,
-              { parse_mode: 'HTML', ...this.getMainKeyboard(userIsAdmin) }
-            );
-          } else {
-            return ctx.reply(
-              `⚠️ <b>Bog‘lanish havolasi eskirgan yoki noto‘g‘ri.</b>\n\n` +
-                `Iltimos, saytdagi profilingizga kirib, qaytadan "Telegramga ulash" tugmasini bosing yoki botda login qiling:\n` +
-                `👉 ${this.clientUrl}/profile`,
-              { parse_mode: 'HTML', ...this.getUnlinkedKeyboard() }
+                `Sizning saytdagi profilingiz (<code>${user.email}</code>) ushbu botga muvaffaqiyatli bog‘landi!\n\n` +
+                `🍰 <b>Imkoniyatlar:</b>\n` +
+                `• Birgina tugma bilan Web App orqali xarid qilish;\n` +
+                `• Buyurtma holatini jonli xabarlar orqali bilib turish;\n` +
+                `• «Buyurtmalarim» menyusida istalgan vaqt kuzatish!`,
+              {
+                parse_mode: 'HTML',
+                ...Markup.inlineKeyboard([
+                  [Markup.button.webApp('🛍️ Tort Buyurtma Qilish (Web App)', this.getWebAppUrl())],
+                ]),
+                ...this.getMainKeyboard(isAdmin),
+              }
             );
           }
         }
 
-        // Regular greeting
-        const user = await this.getLinkedUser(telegramId);
+        // Check channel subscription
+        const isSubscribed = await this.checkChannelSubscription(ctx, telegramId);
+        if (!isSubscribed) return;
+
         const isAdmin = await this.isUserAdmin(telegramId);
+        const linkedUser = await this.getLinkedUser(telegramId);
 
-        if (user) {
-          return ctx.reply(
-            `Assalomu alaykum, <b>${user.name}</b>!\n\n` +
-              `🎂 <b>"Bol Tortlari"</b> rasmiy qandolat boti va servisiga xush kelibsiz.\n\n` +
-              `Barcha xizmatlar va bo‘limlar siz uchun ochiq. Pastdagi menyudan kerakli bo‘limni tanlang:`,
-            { parse_mode: 'HTML', ...this.getMainKeyboard(isAdmin) }
-          );
-        }
-
-        // Not linked yet -> Gatekeeper greeting
         return ctx.reply(
-          `Assalomu alaykum, <b>${userName}</b>!\n\n` +
-            `🎂 <b>"Bol Tortlari"</b> rasmiy qandolat boti va servisiga xush kelibsiz.\n\n` +
-            `🔒 <b>Xavfsizlik va shaxsiy buyurtmalar tizimi:</b>\n` +
-            `Botdagi sara tortlar katalogi, shaxsiy buyurtmalarni kuzatish va keshbek tizimidan to‘liq foydalanish uchun hisobingizga kirishingiz lozim.\n\n` +
-            `Quyidagi usullardan biri orqali hisobingizga kiring:\n` +
-            `1️⃣ <b>🔑 Botda tizimga kirish:</b> Botning o‘zida Email/Username va parolingizni kiritish;\n` +
-            `2️⃣ <b>🔗 Sayt orqali ulash:</b> Saytdagi profilingizdan bitta tugma orqali ulash;\n` +
-            `3️⃣ <b>🚀 Web App:</b> Telegram ichida to‘liq Mini Appni ochish.`,
-          { parse_mode: 'HTML', ...this.getUnlinkedKeyboard() }
+          `Assalomu alaykum, <b>${linkedUser ? linkedUser.name : userName}</b>! 🎂\n\n` +
+            `<b>"Bol Tortlari"</b> rasmiy qandolat boti va xizmatiga xush kelibsiz!\n\n` +
+            `Bu yerda siz mazali va bejirim tortlarni qulay Web App orqali xarid qilishingiz hamda buyurtmalaringiz holatini onlayn kuzatib borishingiz mumkin.`,
+          {
+            parse_mode: 'HTML',
+            ...Markup.inlineKeyboard([
+              [Markup.button.webApp('🛍️ Tort Buyurtma Qilish (Web App)', this.getWebAppUrl())],
+            ]),
+            ...this.getMainKeyboard(isAdmin),
+          }
         );
       } catch (err) {
         console.error('Bot /start error:', err);
@@ -377,26 +361,143 @@ class TelegramBotService {
       }
     });
 
-    // 2. Login command & Button
-    this.bot.hears(['🔑 Botda tizimga kirish', '/login'], async (ctx) => {
-      const telegramId = ctx.from.id.toString();
-      const existingUser = await this.getLinkedUser(telegramId);
-      if (existingUser) {
-        const isAdmin = await this.isUserAdmin(telegramId);
-        return ctx.reply(
-          `ℹ️ Siz allaqachon <b>${existingUser.name}</b> (<code>${existingUser.email}</code>) hisobi bilan tizimdasiz.\n\n` +
-          `Boshqa hisobga o‘tish uchun <b>/logout</b> yoki "🚪 Hisobdan chiqish" tugmasini bosing.`,
-          { parse_mode: 'HTML', ...this.getMainKeyboard(isAdmin) }
-        );
+    // Check subscription callback button
+    this.bot.action('check_subscription', async (ctx) => {
+      try {
+        const telegramId = ctx.from.id.toString();
+        const settings = await Settings.findOne();
+        const channel = settings?.mandatoryChannel || '';
+
+        let isMember = false;
+        try {
+          const chatMember = await ctx.telegram.getChatMember(channel, Number(telegramId));
+          isMember = ['creator', 'administrator', 'member', 'restricted'].includes(chatMember.status);
+        } catch (e) {
+          isMember = true;
+        }
+
+        if (isMember) {
+          await ctx.answerCbQuery('✅ Rahmat, obuna tasdiqlandi!');
+          try {
+            await ctx.deleteMessage();
+          } catch (e) {}
+
+          const isAdmin = await this.isUserAdmin(telegramId);
+          return ctx.reply(
+            `🎉 <b>Obunangiz tasdiqlandi!</b>\n\nQuyidagi tugma orqali Web Appni ochib xarid qilishingiz mumkin:`,
+            {
+              parse_mode: 'HTML',
+              ...Markup.inlineKeyboard([
+                [Markup.button.webApp('🛍️ Tort Buyurtma Qilish (Web App)', this.getWebAppUrl())],
+              ]),
+              ...this.getMainKeyboard(isAdmin),
+            }
+          );
+        } else {
+          return ctx.answerCbQuery('❌ Siz hali kanalga a’zo bo‘lmadingiz. Iltimos, avval obuna bo‘ling.', {
+            show_alert: true,
+          });
+        }
+      } catch (err) {
+        console.error('Check sub error:', err);
       }
+    });
 
-      this.loginSessions.set(telegramId, { step: 'awaiting_login', startedAt: Date.now() });
+    // 2. Buyurtmalarim (My Orders)
+    this.bot.hears(['📦 Buyurtmalarim', '/orders'], async (ctx) => {
+      return this.sendUserOrders(ctx);
+    });
 
+    // Refresh my orders action
+    this.bot.action('refresh_my_orders', async (ctx) => {
+      await ctx.answerCbQuery('Yangilanmoqda 🔄');
+      try {
+        await ctx.deleteMessage();
+      } catch (e) {}
+      return this.sendUserOrders(ctx);
+    });
+
+    // 3. Biz haqimizda & Aloqa
+    this.bot.hears(['ℹ️ Biz haqimizda & Aloqa', '/help', '/contact'], async (ctx) => {
+      const settings = (await Settings.findOne()) || {};
+      const msg =
+        `🎂 <b>"Bol Tortlari" Qandolatxonasi</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `Har bir bayramingizga o‘zgacha shirinlik va mehr ulashamiz!\n\n` +
+        `⏰ <b>Ish vaqti:</b> ${settings.workingHours || '09:00 - 21:00'}\n` +
+        `📞 <b>Telefon:</b> ${settings.contactPhone || '+998 (90) 123-45-67'}\n` +
+        `📍 <b>Manzil:</b> ${settings.contactAddress || 'Farg‘ona viloyati, Uchko‘prik tumani'}\n` +
+        `🌐 <b>Rasmiy sayt:</b> ${this.clientUrl}\n` +
+        `━━━━━━━━━━━━━━━━━━━━`;
+
+      return ctx.reply(msg, {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([
+          [Markup.button.webApp('🛍️ Web App orqali buyurtma berish', this.getWebAppUrl())],
+        ]),
+      });
+    });
+
+    // 4. Admin Paneli command & hears
+    this.bot.hears(['⚙️ Admin Paneli', '/admin'], async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) {
+        return ctx.reply('⛔ Sizda admin huquqlari mavjud emas.');
+      }
+      return this.sendAdminMenu(ctx);
+    });
+
+    // Admin Menu Action
+    this.bot.action('adm_menu', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.answerCbQuery('Ruxsat yo‘q.');
+      await ctx.answerCbQuery();
+      return this.sendAdminMenu(ctx, true);
+    });
+
+    // Admin Stats Action & Command (/stats)
+    this.bot.action('adm_stats', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.answerCbQuery('Ruxsat yo‘q.');
+      await ctx.answerCbQuery('Statistika yuklanmoqda...');
+      return this.sendAdminStats(ctx, true);
+    });
+    this.bot.command('stats', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.reply('Ruxsat yo‘q.');
+      return this.sendAdminStats(ctx, false);
+    });
+
+    // Admin Broadcast Action & Command (/broadcast)
+    this.bot.action('adm_broadcast', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.answerCbQuery('Ruxsat yo‘q.');
+      await ctx.answerCbQuery();
+      this.adminSessions.set(telegramId, { step: 'awaiting_broadcast_message' });
       return ctx.reply(
-        `🔑 <b>"Bol Tortlari" hisobiga kirish:</b>\n\n` +
-        `1️⃣ Saytdagi <b>Email</b> yoki <b>Username</b>ingizni kiriting:\n` +
-        `<i>(Masalan: <code>eabdurashid72@gmail.com</code> yoki <code>evil</code>)</i>\n\n` +
-        `❌ Bekor qilish uchun <code>/cancel</code> deb yozing.`,
+        `📢 <b>Barcha foydalanuvchilarga xabar yuborish (Broadcast)</b>\n\n` +
+          `Barcha bot a’zolariga yuboriladigan xabar matnini kiriting.\n\n` +
+          `❌ Bekor qilish uchun: /cancel`,
+        {
+          parse_mode: 'HTML',
+          ...Markup.keyboard([['❌ Bekor qilish']]).resize(),
+        }
+      );
+    });
+    this.bot.command('broadcast', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.reply('Ruxsat yo‘q.');
+      this.adminSessions.set(telegramId, { step: 'awaiting_broadcast_message' });
+      return ctx.reply(
+        `📢 <b>Barcha foydalanuvchilarga xabar yuborish (Broadcast)</b>\n\n` +
+          `Barcha bot a’zolariga yuboriladigan xabar matnini kiriting.\n\n` +
+          `❌ Bekor qilish uchun: /cancel`,
         {
           parse_mode: 'HTML',
           ...Markup.keyboard([['❌ Bekor qilish']]).resize(),
@@ -404,626 +505,166 @@ class TelegramBotService {
       );
     });
 
-    // Direct command login: /login <identifier> <password>
-    this.bot.command('login', async (ctx) => {
-      const parts = ctx.message.text.trim().split(/\s+/);
-      if (parts.length >= 3) {
-        const identifier = parts[1];
-        const password = parts.slice(2).join(' ');
-        try { await ctx.deleteMessage(ctx.message.message_id); } catch (e) {}
-        return this.processLogin(ctx, identifier, password);
-      }
-    });
-
-    // 3. Logout
-    this.bot.hears(['🚪 Hisobdan chiqish', '/logout'], async (ctx) => {
+    // Confirm Broadcast
+    this.bot.action('confirm_broadcast_yes', async (ctx) => {
       const telegramId = ctx.from.id.toString();
-      const user = await User.findOne({ telegramId });
-      if (user) {
-        user.telegramId = null;
-        user.telegramLinkToken = null;
-        user.telegramLinkExpires = null;
-        await user.save();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.answerCbQuery('Ruxsat yo‘q.');
+
+      const session = this.adminSessions.get(telegramId);
+      if (!session || !session.messageText) {
+        return ctx.answerCbQuery('Xabar matni topilmadi.');
       }
-      this.loginSessions.delete(telegramId);
-      return ctx.reply(
-        `👋 <b>Hisobingizdan muvaffaqiyatli chiqdingiz.</b>\n\n` +
-        `Botdan foydalanish uchun istalgan vaqtda qaytadan tizimga kirishingiz mumkin.`,
-        { parse_mode: 'HTML', ...this.getUnlinkedKeyboard() }
-      );
-    });
 
-    // 4. Link via website instructions
-    this.bot.hears(['🔗 Sayt orqali ulash', '/link'], async (ctx) => {
-      return ctx.reply(
-        `🔗 <b>Sayt orqali hisobni ulash tartibi:</b>\n\n` +
-        `1. Saytimizga kiring: 👉 ${this.clientUrl}/profile\n` +
-        `2. Profilingizdan <b>"Telegramga ulash"</b> tugmasini bosing.\n` +
-        `3. Ochilgan oynadagi <b>"Telegram orqali ochish va ulash"</b> tugmasini bossangiz, profilingiz shu zahotiyoq avtomatik biriktiriladi!`,
-        {
-          parse_mode: 'HTML',
-          ...Markup.inlineKeyboard([
-            [Markup.button.url('🌐 Saytdagi profilga o‘tish', `${this.clientUrl}/profile`)],
-          ]),
-        }
-      );
-    });
+      const textToSend = session.messageText;
+      this.adminSessions.delete(telegramId);
 
-    // 5. Web App info / launch
-    this.bot.hears(['🚀 Web App', '/webapp', '🚀 Web App (Mini App)', '🚀 Web App (Mini Ilova)'], async (ctx) => {
-      return ctx.reply(
-        `🍰 <b>"Bol Tortlari" — Telegram Mini App (Web App):</b>\n\n` +
-        `Saytning to‘liq interfeysini Telegramdan chiqmasdan turib ishlatishingiz mumkin!`,
-        {
-          parse_mode: 'HTML',
-          ...Markup.inlineKeyboard([
-            [Markup.button.webApp('🚀 Web Appni ochish', this.getWebAppUrl())],
-          ]),
-        }
-      );
-    });
+      await ctx.answerCbQuery('Xabarlar yuborilmoqda...');
+      await ctx.reply('⏳ Xabar foydalanuvchilarga yuborilmoqda, kuting...');
 
-    // 6. 🎂 Tortlar Katalogi & Bo'limlar
-    this.bot.hears(['🎂 Tortlar Katalogi', '🎂 Katalog & Buyurtma', '/catalog'], async (ctx) => {
-      try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
+      // Find all users with telegramId
+      const users = await User.find({ telegramId: { $ne: null } });
+      let sentCount = 0;
+      let failCount = 0;
 
-        const categories = await Category.find({ isActive: true });
-
-        const buttons = [];
-        buttons.push([Markup.button.callback('✨ Barcha sara tortlar', 'cat:all:0')]);
-
-        // Group categories 2 per row
-        for (let i = 0; i < categories.length; i += 2) {
-          const row = [];
-          row.push(Markup.button.callback(categories[i].name_uz, `cat:${categories[i].slug}:0`));
-          if (categories[i + 1]) {
-            row.push(Markup.button.callback(categories[i + 1].name_uz, `cat:${categories[i + 1].slug}:0`));
-          }
-          buttons.push(row);
-        }
-
-        return ctx.reply(
-          `🎂 <b>"Bol Tortlari" Qandolat Katalogi:</b>\n\n` +
-            `Tabiiy sariyog‘, sifatli shokolad va yangi mevalardan tayyorlangan betakror shirinliklarimiz.\n\n` +
-            `Quyidagi toifalardan birini tanlang yoki saytimiz orqali ko‘ring:\n` +
-            `👉 ${this.clientUrl}/cakes`,
-          {
-            parse_mode: 'HTML',
-            ...Markup.inlineKeyboard(buttons),
-          }
-        );
-      } catch (err) {
-        console.error('Bot catalog error:', err);
-        ctx.reply('Katalogni yuklashda xatolik yuz berdi.');
-      }
-    });
-
-    // Category Pagination & Cake Viewer: cat:<slug>:<index>
-    this.bot.action(/^cat:(.+):(\d+)$/, async (ctx) => {
-      try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
-
-        const slug = ctx.match[1];
-        let index = parseInt(ctx.match[2], 10) || 0;
-
-        const filter = { isActive: { $ne: false } };
-        if (slug !== 'all') {
-          filter.category_slug = slug;
-        }
-
-        const cakes = await Cake.find(filter);
-
-        if (!cakes || cakes.length === 0) {
-          return ctx.answerCbQuery('Bu bo‘limda hozircha tortlar mavjud emas.', { show_alert: true });
-        }
-
-        if (index >= cakes.length) index = 0;
-        if (index < 0) index = cakes.length - 1;
-
-        const cake = cakes[index];
-        const cakeId = cake._id ? cake._id.toString() : cake.id;
-
-        const isFav = Array.isArray(user.favorites) && user.favorites.some((f) => f.toString() === cakeId);
-
-        const caption =
-          `🎂 <b>${cake.name}</b>\n` +
-          `━━━━━━━━━━━━━━━━━━━━\n` +
-          `🏷️ <b>Bo‘lim:</b> ${cake.category_name || 'Premium'}\n` +
-          `⚖️ <b>Vazni:</b> ${cake.weight || '1.5 kg'}\n` +
-          `💰 <b>Narxi:</b> <b>${(cake.price || 0).toLocaleString()} so‘m</b>\n` +
-          (cake.is_popular ? `🔥 <i>Xit mahsulot / Eng ko‘p sotilgan</i>\n` : '') +
-          `\n📝 <i>${cake.description || 'Premium tabiiy masalliqlardan tayyorlangan betakror bayram shirinligi.'}</i>\n` +
-          `━━━━━━━━━━━━━━━━━━━━\n` +
-          `Mahsulot ${index + 1} / ${cakes.length}\n` +
-          `🌐 Saytda to‘liq ko‘rish: ${this.clientUrl}/cakes/${cakeId}`;
-
-        const navRow = [];
-        if (cakes.length > 1) {
-          navRow.push(Markup.button.callback('⬅️ Oldingi', `cat:${slug}:${index - 1}`));
-          navRow.push(Markup.button.callback(`${index + 1}/${cakes.length}`, 'noop'));
-          navRow.push(Markup.button.callback('Keyingi ➡️', `cat:${slug}:${index + 1}`));
-        }
-
-        const actionRow = [
-          Markup.button.callback(isFav ? '❤️ Sevimlilarda bor' : '🤍 Sevimlilarga qo‘shish', `fav_toggle:${cakeId}:${slug}:${index}`),
-        ];
-
-        const inlineButtons = [actionRow];
-        if (navRow.length) inlineButtons.push(navRow);
-        inlineButtons.push([Markup.button.callback('🔙 Barcha bo‘limlar', 'show_categories')]);
-
-        await ctx.answerCbQuery();
-
+      for (const u of users) {
+        if (!u.telegramId) continue;
         try {
-          await ctx.editMessageText(caption, {
+          await this.bot.telegram.sendMessage(u.telegramId, textToSend, {
             parse_mode: 'HTML',
-            ...Markup.inlineKeyboard(inlineButtons),
           });
+          sentCount++;
         } catch (e) {
-          await ctx.reply(caption, {
-            parse_mode: 'HTML',
-            ...Markup.inlineKeyboard(inlineButtons),
-          });
+          failCount++;
         }
-      } catch (err) {
-        console.error('Category action error:', err);
-        ctx.answerCbQuery('Xatolik yuz berdi.');
       }
-    });
 
-    this.bot.action('show_categories', async (ctx) => {
-      try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
-
-        const categories = await Category.find({ isActive: true });
-        const buttons = [];
-        buttons.push([Markup.button.callback('✨ Barcha sara tortlar', 'cat:all:0')]);
-
-        for (let i = 0; i < categories.length; i += 2) {
-          const row = [];
-          row.push(Markup.button.callback(categories[i].name_uz, `cat:${categories[i].slug}:0`));
-          if (categories[i + 1]) {
-            row.push(Markup.button.callback(categories[i + 1].name_uz, `cat:${categories[i + 1].slug}:0`));
-          }
-          buttons.push(row);
-        }
-
-        await ctx.answerCbQuery();
-        await ctx.editMessageText(
-          `🎂 <b>"Bol Tortlari" Qandolat Katalogi:</b>\n\n` +
-            `Quyidagi toifalardan birini tanlang:\n` +
-            `👉 ${this.clientUrl}/cakes`,
-          {
-            parse_mode: 'HTML',
-            ...Markup.inlineKeyboard(buttons),
-          }
-        );
-      } catch (err) {
-        ctx.answerCbQuery();
-      }
-    });
-
-    this.bot.action('noop', (ctx) => ctx.answerCbQuery());
-
-    // Toggle Favorite from Bot: fav_toggle:<cakeId>:<slug>:<index>
-    this.bot.action(/^fav_toggle:(.+):(.+):(\d+)$/, async (ctx) => {
-      try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
-
-        const cakeId = ctx.match[1];
-        const slug = ctx.match[2];
-        const index = ctx.match[3];
-
-        if (!Array.isArray(user.favorites)) {
-          user.favorites = [];
-        }
-
-        const favIndex = user.favorites.findIndex((f) => f.toString() === cakeId);
-        let added = false;
-        if (favIndex > -1) {
-          user.favorites.splice(favIndex, 1);
-          added = false;
-        } else {
-          user.favorites.push(cakeId);
-          added = true;
-        }
-
-        await user.save();
-        await ctx.answerCbQuery(added ? '❤️ Sevimlilar ro‘yxatiga qo‘shildi!' : 'Olib tashlandi.');
-
-        // Refresh cake view
-        const cakes = await Cake.find(slug === 'all' ? { isActive: { $ne: false } } : { category_slug: slug, isActive: { $ne: false } });
-        const idx = Math.min(parseInt(index, 10), cakes.length - 1);
-        const cake = cakes[idx];
-        if (!cake) return;
-
-        const caption =
-          `🎂 <b>${cake.name}</b>\n` +
-          `━━━━━━━━━━━━━━━━━━━━\n` +
-          `🏷️ <b>Bo‘lim:</b> ${cake.category_name || 'Premium'}\n` +
-          `⚖️ <b>Vazni:</b> ${cake.weight || '1.5 kg'}\n` +
-          `💰 <b>Narxi:</b> <b>${(cake.price || 0).toLocaleString()} so‘m</b>\n` +
-          (cake.is_popular ? `🔥 <i>Xit mahsulot / Eng ko‘p sotilgan</i>\n` : '') +
-          `\n📝 <i>${cake.description || 'Premium tabiiy masalliqlardan tayyorlangan betakror bayram shirinligi.'}</i>\n` +
-          `━━━━━━━━━━━━━━━━━━━━\n` +
-          `Mahsulot ${idx + 1} / ${cakes.length}\n` +
-          `🌐 Saytda to‘liq ko‘rish: ${this.clientUrl}/cakes/${cakeId}`;
-
-        const navRow = [];
-        if (cakes.length > 1) {
-          navRow.push(Markup.button.callback('⬅️ Oldingi', `cat:${slug}:${idx - 1}`));
-          navRow.push(Markup.button.callback(`${idx + 1}/${cakes.length}`, 'noop'));
-          navRow.push(Markup.button.callback('Keyingi ➡️', `cat:${slug}:${idx + 1}`));
-        }
-
-        const actionRow = [
-          Markup.button.callback(added ? '❤️ Sevimlilarda bor' : '🤍 Sevimlilarga qo‘shish', `fav_toggle:${cakeId}:${slug}:${idx}`),
-        ];
-
-        const inlineButtons = [actionRow];
-        if (navRow.length) inlineButtons.push(navRow);
-        inlineButtons.push([Markup.button.callback('🔙 Barcha bo‘limlar', 'show_categories')]);
-
-        await ctx.editMessageText(caption, {
+      return ctx.reply(
+        `✅ <b>Xabarnoma yakunlandi!</b>\n\n` +
+          `• Muvaffaqiyatli yuborildi: <b>${sentCount} ta</b>\n` +
+          `• Yetkazilmadi / Bloklangan: <b>${failCount} ta</b>`,
+        {
           parse_mode: 'HTML',
-          ...Markup.inlineKeyboard(inlineButtons),
-        });
-      } catch (err) {
-        console.error('Fav toggle error:', err);
-        ctx.answerCbQuery('Xatolik.');
-      }
+          ...this.getMainKeyboard(true),
+        }
+      );
     });
 
-    // 7. 📦 Buyurtmalarim (My Orders)
-    this.bot.hears(['📦 Buyurtmalarim', '/orders'], async (ctx) => {
+    this.bot.action('confirm_broadcast_no', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      this.adminSessions.delete(telegramId);
+      await ctx.answerCbQuery('Bekor qilindi.');
       try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
+        await ctx.deleteMessage();
+      } catch (e) {}
+      return ctx.reply('Xabar yuborish bekor qilindi.', this.getMainKeyboard(true));
+    });
 
-        const orders = await Order.find({ customer: user._id })
-          .sort({ createdAt: -1 })
-          .limit(5);
+    // Admin Mandatory Channel Subscription (/channel or adm_channel)
+    this.bot.action('adm_channel', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.answerCbQuery('Ruxsat yo‘q.');
+      await ctx.answerCbQuery();
+      return this.sendChannelConfig(ctx, true);
+    });
+    this.bot.command('channel', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.reply('Ruxsat yo‘q.');
+      return this.sendChannelConfig(ctx, false);
+    });
 
-        if (!orders || orders.length === 0) {
-          const inline = this.getInlineWebButton('🎂 Katalogga o‘tish', '/cakes');
-          return ctx.reply(
-            `📦 <b>Sizda hali buyurtmalar mavjud emas.</b>\n\n` +
-              `Yangi bayram shirinliklariga buyurtma berish uchun saytimizga tashrif buyuring:\n` +
-              `👉 ${this.clientUrl}/cakes`,
-            {
-              parse_mode: 'HTML',
-              ...(inline || {}),
-            }
-          );
-        }
+    // Toggle Channel Sub
+    this.bot.action('adm_toggle_channel_sub', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.answerCbQuery('Ruxsat yo‘q.');
 
-        let message = `📦 <b>Sizning so‘nggi buyurtmalaringiz:</b>\n\n`;
-        orders.forEach((ord, index) => {
-          const statusText = STATUS_LABELS[ord.status] || ord.status;
-          const dateStr = new Date(ord.createdAt).toLocaleDateString('uz-UZ', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-          const itemCount = ord.items?.reduce((acc, it) => acc + (it.quantity || 1), 0) || 1;
+      let settings = await Settings.findOne();
+      if (!settings) settings = new Settings();
+      settings.isMandatorySubEnabled = !settings.isMandatorySubEnabled;
+      await settings.save();
 
-          message += `<b>${index + 1}. #${ord.orderId}</b> — ${statusText}\n`;
-          message += `   📅 Sana: ${dateStr}\n`;
-          message += `   🧁 Mahsulotlar: ${itemCount} ta\n`;
-          message += `   💰 Summa: <b>${(ord.total || 0).toLocaleString()} so‘m</b>\n`;
-          message += `   📍 Manzil: ${ord.customer_address || '-'}\n\n`;
-        });
+      await ctx.answerCbQuery(
+        settings.isMandatorySubEnabled ? '🟢 Majburiy obuna yoqildi!' : '🔴 Majburiy obuna o‘chirildi!',
+        { show_alert: true }
+      );
+      return this.sendChannelConfig(ctx, true);
+    });
 
-        message += `Batafsil ma'lumot va jonli kuzatuv uchun:\n👉 ${this.clientUrl}/orders`;
+    // Change Channel Name
+    this.bot.action('adm_change_channel_name', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.answerCbQuery('Ruxsat yo‘q.');
 
-        const inline = this.getInlineWebButton('⚡ Buyurtmalarni jonli kuzatish', '/orders');
-
-        return ctx.reply(message, {
+      await ctx.answerCbQuery();
+      this.adminSessions.set(telegramId, { step: 'awaiting_channel_name' });
+      return ctx.reply(
+        `✏️ <b>Kanal nomini kiriting</b> (masalan: <code>@boltortlar</code> yoki <code>@kanal_nomi</code>):\n\n` +
+          `❌ Bekor qilish: /cancel`,
+        {
           parse_mode: 'HTML',
-          ...(inline || {}),
-        });
-      } catch (err) {
-        console.error('Bot orders error:', err);
-        ctx.reply('Buyurtmalarni yuklashda xatolik yuz berdi.');
-      }
-    });
-
-    // 8. ❤️ Sevimlilar (Favorites / Wishlist)
-    this.bot.hears(['❤️ Sevimlilar', '/favorites'], async (ctx) => {
-      try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
-
-        if (user && typeof user.populate === 'function') {
-          await user.populate('favorites');
+          ...Markup.keyboard([['❌ Bekor qilish']]).resize(),
         }
-
-        const favorites = (user.favorites || []).filter(Boolean);
-        if (favorites.length === 0) {
-          const inline = this.getInlineWebButton('🎂 Katalogni ko‘rish', '/cakes');
-          return ctx.reply(
-            `❤️ <b>Sizning sevimlilar ro‘yxatingiz bo‘sh.</b>\n\n` +
-              `Katalogimizdagi tortlarga ❤️ Like belgisini bosib o‘zingizga yoqqanlarini saqlab boring!\n` +
-              `👉 ${this.clientUrl}/cakes`,
-            {
-              parse_mode: 'HTML',
-              ...(inline || {}),
-            }
-          );
-        }
-
-        let message = `❤️ <b>Siz yoqtirgan tortlar (${favorites.length} ta):</b>\n\n`;
-        favorites.slice(0, 10).forEach((cake, idx) => {
-          message += `<b>${idx + 1}. ${cake.name}</b>\n`;
-          message += `   💰 Narxi: <b>${(cake.price || 0).toLocaleString()} so‘m</b>\n`;
-          if (cake.category_name || cake.categoryName) {
-            message += `   🏷️ Bo‘lim: ${cake.category_name || cake.categoryName}\n`;
-          }
-          message += `\n`;
-        });
-
-        message += `Sevimlilaringizni savatga qo‘shish va buyurtma qilish uchun:\n👉 ${this.clientUrl}/favorites`;
-
-        const inline = this.getInlineWebButton('❤️ Sevimlilar sahifasiga o‘tish', '/favorites');
-
-        return ctx.reply(message, {
-          parse_mode: 'HTML',
-          ...(inline || {}),
-        });
-      } catch (err) {
-        console.error('Bot favorites error:', err);
-        ctx.reply('Sevimlilarni yuklashda xatolik yuz berdi.');
-      }
+      );
     });
 
-    // 9. 💰 Hamyon & Keshbek
-    this.bot.hears(['💰 Hamyon & Keshbek', '/wallet'], async (ctx) => {
-      try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
+    // Admin Active Orders
+    this.bot.action('adm_active_orders', async (ctx) => {
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.isUserAdmin(telegramId);
+      if (!isAdmin) return ctx.answerCbQuery('Ruxsat yo‘q.');
+      await ctx.answerCbQuery();
 
-        const settings = (await Settings.findOne()) || { cashbackPercent: 3 };
-        const cashbackPercent = settings.cashbackPercent || 3;
+      const activeOrders = await Order.find({
+        status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'assigned', 'delivering', 'on_the_way'] },
+      })
+        .sort({ createdAt: -1 })
+        .limit(5);
 
-        const inline = this.getInlineWebButton('💳 Hamyonni boshqarish', '/profile');
-
-        return ctx.reply(
-          `💰 <b>Sizning shaxsiy hamyoningiz:</b>\n\n` +
-            `👤 <b>Mijoz:</b> ${user.name} (@${user.username || 'username_yoq'})\n` +
-            `💳 <b>Mavjud balans:</b> <code>${(user.walletBalance || 0).toLocaleString()} so‘m</code>\n` +
-            `🎁 <b>Keshbek stavkasi:</b> <code>${cashbackPercent}%</code>\n\n` +
-            `Hamyondagi mablag‘ingizdan istalgan vaqtda keyingi shirinlik xaridlarida to‘liq foydalanishingiz mumkin!\n` +
-            `👉 ${this.clientUrl}/profile`,
-          {
-            parse_mode: 'HTML',
-            ...(inline || {}),
-          }
-        );
-      } catch (err) {
-        console.error('Bot wallet error:', err);
-        ctx.reply('Hamyon ma’lumotlarini olishda xatolik yuz berdi.');
-      }
-    });
-
-    // 10. 👤 Shaxsiy Profil
-    this.bot.hears(['👤 Shaxsiy Profil', '/profile'], async (ctx) => {
-      try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
-
-        return ctx.reply(
-          `👤 <b>Shaxsiy Kabinet Ma'lumotlari:</b>\n\n` +
-            `• <b>Ism:</b> ${user.name}\n` +
-            `• <b>Username:</b> @${user.username || 'yo‘q'}\n` +
-            `• <b>Email:</b> <code>${user.email}</code>\n` +
-            `• <b>Telefon:</b> ${user.phone || 'Kiritilmagan'}\n` +
-            `• <b>Rol:</b> <code>${user.role}</code>\n` +
-            `• <b>Hamyon:</b> ${(user.walletBalance || 0).toLocaleString()} so‘m\n` +
-            `• <b>Telegram:</b> Ulangan ✅\n\n` +
-            `Saytda to‘liq sozlamalar va manzillar kitobchasi:\n👉 ${this.clientUrl}/profile`,
-          { parse_mode: 'HTML' }
-        );
-      } catch (err) {
-        ctx.reply('Profil ma’lumotlarini olishda xatolik yuz berdi.');
-      }
-    });
-
-    // 11. 📞 Aloqa & Manzil (Available for everyone)
-    this.bot.hears(['📞 Aloqa & Manzil', '/contact', '📞 Aloqa & Yordam'], async (ctx) => {
-      try {
-        const settings = await Settings.findOne();
-        const phone = settings?.contactPhone || '+998 (90) 123-45-67';
-        const telegram = settings?.contactTelegram || '@boltortlari_admin';
-        const address = settings?.contactAddress || 'Toshkent sh., Navoiy ko‘chasi 14';
-        const hours = settings?.workingHours || '09:00 - 21:00';
-
-        return ctx.reply(
-          `📞 <b>"Bol Tortlari" Aloqa Markazi:</b>\n\n` +
-            `📍 <b>Manzil:</b> ${address}\n` +
-            `⏰ <b>Ish vaqti:</b> ${hours} (Dam olish kunlarisiz)\n` +
-            `📱 <b>Telefon:</b> ${phone}\n` +
-            `✈️ <b>Telegram operator:</b> ${telegram}\n\n` +
-            `Har qanday taklif yoki maxsus buyurtmalar bo‘yicha bemalol bog‘lanishingiz mumkin!`,
-          { parse_mode: 'HTML' }
-        );
-      } catch (err) {
-        ctx.reply('Aloqa ma’lumotlarini olishda xatolik yuz berdi.');
-      }
-    });
-
-    // 12. ⚙️ Admin Paneli (Telegramda)
-    this.bot.hears(['⚙️ Admin Paneli', '/admin'], async (ctx) => {
-      try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
-
-        const telegramId = ctx.from.id.toString();
-        const isAdmin = await this.isUserAdmin(telegramId);
-
-        if (!isAdmin) {
-          return ctx.reply('⛔ Kechirasiz, sizda administrator huquqlari yo‘q.');
-        }
-
-        // Fetch Live Stats from Database
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-
-        const todayOrders = await Order.find({
-          createdAt: { $gte: todayStart },
-          status: { $ne: 'cancelled' },
+      if (!activeOrders || activeOrders.length === 0) {
+        return ctx.reply('Hozirda yangi yoki faol buyurtmalar mavjud emas.', {
+          ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin panel', 'adm_menu')]]),
         });
+      }
 
-        const todayRevenue = todayOrders.reduce((sum, ord) => sum + (ord.total || 0), 0);
-
-        const activeCount = await Order.countDocuments({
-          status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'assigned', 'delivering', 'on_the_way'] },
-        });
-
-        const usersCount = await User.countDocuments();
-        const settings = (await Settings.findOne()) || { isStoreOpen: true };
-
-        const adminMessage =
-          `⚙️ <b>BOL TORTLARI — ADMIN BOSHQARUV PORTALI</b>\n` +
+      for (const ord of activeOrders) {
+        const msg =
+          `📦 <b>Buyurtma #${ord.orderId}</b>\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
-          `🏬 <b>Do‘kon holati:</b> ${settings.isStoreOpen ? '🟢 OCHIQ' : '🔴 YOPIQ'}\n` +
-          `💰 <b>Bugungi tushum:</b> <b>${todayRevenue.toLocaleString()} so‘m</b> (${todayOrders.length} ta buyurtma)\n` +
-          `⚡ <b>Faol buyurtmalar:</b> <b>${activeCount} ta</b>\n` +
-          `👥 <b>Jami mijozlar:</b> ${usersCount} ta\n` +
-          `━━━━━━━━━━━━━━━━━━━━\n` +
-          `Quyidagi tugmalar orqali boshqaring yoki sayt admin paneliga kiring:\n` +
-          `🌐 ${this.clientUrl}/admin`;
+          `👤 Mijoz: <b>${ord.customer_name}</b> (<code>${ord.customer_phone}</code>)\n` +
+          `📍 Manzil: ${ord.customer_address}\n` +
+          `💰 Summa: <b>${(ord.total || 0).toLocaleString()} so‘m</b>\n` +
+          `Holat: <b>${STATUS_LABELS[ord.status] || ord.status}</b>\n`;
 
         const keyboard = Markup.inlineKeyboard([
-          [Markup.button.callback(`📦 Faol buyurtmalar (${activeCount})`, 'adm_active_orders')],
           [
-            Markup.button.callback(
-              settings.isStoreOpen ? '🔴 Do‘konni yopish' : '🟢 Do‘konni ochish',
-              'adm_toggle_store'
-            ),
+            Markup.button.callback('✅ Qabul', `ord_status:${ord.orderId}:confirmed`),
+            Markup.button.callback('👨‍🍳 Oshxona', `ord_status:${ord.orderId}:preparing`),
           ],
-          [Markup.button.callback('🔄 Yangilash', 'adm_refresh_stats')],
+          [
+            Markup.button.callback('🛵 Kuryerda', `ord_status:${ord.orderId}:on_the_way`),
+            Markup.button.callback('🎉 Yetkazildi', `ord_status:${ord.orderId}:delivered`),
+          ],
+          [Markup.button.callback('❌ Bekor qilish', `ord_status:${ord.orderId}:cancelled`)],
         ]);
 
-        return ctx.reply(adminMessage, {
-          parse_mode: 'HTML',
-          ...keyboard,
-        });
-      } catch (err) {
-        console.error('Admin panel command error:', err);
-        ctx.reply('Admin panelni yuklashda xatolik.');
+        await ctx.reply(msg, { parse_mode: 'HTML', ...keyboard });
       }
     });
 
-    // Admin Toggle Store Action
-    this.bot.action('adm_toggle_store', async (ctx) => {
-      try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
-
-        const telegramId = ctx.from.id.toString();
-        const isAdmin = await this.isUserAdmin(telegramId);
-        if (!isAdmin) return ctx.answerCbQuery('Ruxsat yo‘q.');
-
-        let settings = await Settings.findOne();
-        if (!settings) {
-          settings = new Settings();
-        }
-
-        settings.isStoreOpen = !settings.isStoreOpen;
-        await settings.save();
-
-        await ctx.answerCbQuery(
-          settings.isStoreOpen ? '🟢 Do‘kon ochildi!' : '🔴 Do‘kon vaqtincha yopildi!',
-          { show_alert: true }
-        );
-
-        return this.sendRefreshedAdminStats(ctx);
-      } catch (err) {
-        console.error('Admin toggle store error:', err);
-        ctx.answerCbQuery('Xatolik.');
-      }
-    });
-
-    // Admin Refresh Stats Action
-    this.bot.action('adm_refresh_stats', async (ctx) => {
-      const user = await this.requireAuth(ctx);
-      if (!user) return;
-      await ctx.answerCbQuery('Yangilandi 🔄');
-      return this.sendRefreshedAdminStats(ctx);
-    });
-
-    // Admin Active Orders Action
-    this.bot.action('adm_active_orders', async (ctx) => {
-      try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
-
-        const telegramId = ctx.from.id.toString();
-        const isAdmin = await this.isUserAdmin(telegramId);
-        if (!isAdmin) return ctx.answerCbQuery('Ruxsat yo‘q.');
-
-        const activeOrders = await Order.find({
-          status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'assigned', 'delivering', 'on_the_way'] },
-        })
-          .sort({ createdAt: -1 })
-          .limit(5);
-
-        if (!activeOrders || activeOrders.length === 0) {
-          return ctx.answerCbQuery('Hozirda faol buyurtmalar mavjud emas.', { show_alert: true });
-        }
-
-        await ctx.answerCbQuery();
-
-        for (const ord of activeOrders) {
-          const statusText = STATUS_LABELS[ord.status] || ord.status;
-          const msg =
-            `📦 <b>Buyurtma #${ord.orderId}</b>\n` +
-            `━━━━━━━━━━━━━━━━━━━━\n` +
-            `👤 Mijoz: <b>${ord.customer_name}</b> (<code>${ord.customer_phone}</code>)\n` +
-            `📍 Manzil: ${ord.customer_address}\n` +
-            `💰 Summa: <b>${(ord.total || 0).toLocaleString()} so‘m</b> (${ord.payment_method})\n` +
-            `Holat: <b>${statusText}</b>\n` +
-            (ord.notes ? `Izoh: <i>${ord.notes}</i>\n` : '');
-
-          const keyboard = Markup.inlineKeyboard([
-            [
-              Markup.button.callback('✅ Qabul', `ord_status:${ord.orderId}:confirmed`),
-              Markup.button.callback('👨‍🍳 Oshxona', `ord_status:${ord.orderId}:preparing`),
-            ],
-            [
-              Markup.button.callback('🛵 Kuryerda', `ord_status:${ord.orderId}:on_the_way`),
-              Markup.button.callback('🎉 Yetkazildi', `ord_status:${ord.orderId}:delivered`),
-            ],
-            [Markup.button.callback('❌ Bekor qilish', `ord_status:${ord.orderId}:cancelled`)],
-          ]);
-
-          await ctx.reply(msg, { parse_mode: 'HTML', ...keyboard });
-        }
-      } catch (err) {
-        console.error('Admin active orders error:', err);
-        ctx.answerCbQuery('Xatolik.');
-      }
-    });
-
-    // Admin Inline Button Callback: ord_status:<orderId>:<status>
+    // Admin Order Status Callback: ord_status:<orderId>:<status>
     this.bot.action(/^ord_status:(.+):(.+)$/, async (ctx) => {
       try {
-        const user = await this.requireAuth(ctx);
-        if (!user) return;
-
         const orderId = ctx.match[1];
         const newStatus = ctx.match[2];
         const senderId = ctx.from.id.toString();
 
         const isAdmin = await this.isUserAdmin(senderId);
         if (!isAdmin) {
-          return ctx.answerCbQuery('⛔ Sizda buyurtma statusini o‘zgartirish huquqi yo‘q.', { show_alert: true });
+          return ctx.answerCbQuery('⛔ Sizda ruxsat yo‘q.', { show_alert: true });
         }
 
         const order = await findOrderSafely(orderId);
@@ -1047,140 +688,225 @@ class TelegramBotService {
 
         await order.save();
 
-        // If marked delivered, trigger complete delivery sequence
-        if (newStatus === 'delivered') {
-          const { orderController } = await import('../controllers/orderController.js');
-          if (orderController && orderController.handleOrderDeliveryCompletion) {
-            await orderController.handleOrderDeliveryCompletion(order, 'Telegram Admin');
-          }
-        } else {
-          socketService.emitOrderStatus(order);
-        }
+        // Notify real-time Web App
+        socketService.emitOrderStatus(order);
 
-        // Notify customer on Telegram if linked
+        // Notify customer directly in Telegram!
         await this.notifyCustomerOrderStatus(order);
 
-        await ctx.answerCbQuery(`✅ #${order.orderId} statusi: ${STATUS_LABELS[newStatus] || newStatus}`);
+        await ctx.answerCbQuery(`✅ Holat o‘zgartirildi: ${STATUS_LABELS[newStatus] || newStatus}`, {
+          show_alert: true,
+        });
 
-        // Update admin message markup
         try {
-          await ctx.editMessageReplyMarkup(
-            Markup.inlineKeyboard([
-              [
-                Markup.button.callback(
-                  newStatus === 'confirmed' ? '✅ Qabul qilindi' : 'Qabul qilish',
-                  `ord_status:${order.orderId}:confirmed`
-                ),
-                Markup.button.callback(
-                  newStatus === 'preparing' ? '👨‍🍳 Tayyorlanmoqda' : 'Tayyorlash',
-                  `ord_status:${order.orderId}:preparing`
-                ),
-              ],
-              [
-                Markup.button.callback(
-                  newStatus === 'on_the_way' ? '🛵 Yo‘lda' : 'Kuryerga berish',
-                  `ord_status:${order.orderId}:on_the_way`
-                ),
-                Markup.button.callback(
-                  newStatus === 'delivered' ? '🎉 Yetkazildi' : 'Yetkazildi',
-                  `ord_status:${order.orderId}:delivered`
-                ),
-              ],
-              [
-                Markup.button.callback(
-                  newStatus === 'cancelled' ? '❌ Bekor qilingan' : 'Bekor qilish',
-                  `ord_status:${order.orderId}:cancelled`
-                ),
-              ],
-            ]).reply_markup
+          await ctx.editMessageText(
+            ctx.callbackQuery.message.text + `\n\n✏️ <i>Holat yangilandi: ${STATUS_LABELS[newStatus] || newStatus}</i>`,
+            { parse_mode: 'HTML' }
           );
-        } catch (editErr) {}
+        } catch (e) {}
       } catch (err) {
-        console.error('Bot action error:', err);
-        ctx.answerCbQuery('Xatolik yuz berdi.', { show_alert: true });
+        console.error('Order status callback error:', err);
+        ctx.answerCbQuery('Xatolik.');
       }
     });
   }
 
-  async sendRefreshedAdminStats(ctx) {
+  // Display User Orders
+  async sendUserOrders(ctx) {
     try {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      const telegramId = ctx.from.id.toString();
+      const user = await User.findOne({ telegramId });
 
-      const todayOrders = await Order.find({
-        createdAt: { $gte: todayStart },
-        status: { $ne: 'cancelled' },
+      let filter = {};
+      if (user) {
+        filter = { $or: [{ customer: user._id }, { customer_phone: user.phone || 'unknown' }] };
+      } else {
+        // Not linked yet
+        return ctx.reply(
+          `📦 <b>Buyurtmalaringizni ko‘rish uchun hisobingizni ulang</b>\n\n` +
+            `Sizning saytdagi profilingiz ushbu Telegram botga hali ulanmagan.\n` +
+            `Saytda profilingizga kiring va «Telegram hisobini ulash» tugmasini bosing:`,
+          {
+            parse_mode: 'HTML',
+            ...Markup.inlineKeyboard([
+              [Markup.button.webApp('🛍️ Tort Buyurtma Qilish (Web App)', this.getWebAppUrl())],
+            ]),
+          }
+        );
+      }
+
+      const orders = await Order.find(filter).sort({ createdAt: -1 }).limit(5);
+
+      if (!orders || orders.length === 0) {
+        return ctx.reply(
+          `📦 <b>Sizda hozircha buyurtmalar mavjud emas.</b>\n\n` +
+            `Mazali va sifatli tortlarimizni buyurtma qilish uchun quyidagi tugmani bosing:`,
+          {
+            parse_mode: 'HTML',
+            ...Markup.inlineKeyboard([
+              [Markup.button.webApp('🛍️ Tort Buyurtma Qilish (Web App)', this.getWebAppUrl())],
+            ]),
+          }
+        );
+      }
+
+      let text = `📦 <b>Sizning buyurtmalaringiz:</b>\n━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+      orders.forEach((ord, index) => {
+        const statusText = STATUS_LABELS[ord.status] || ord.status;
+        const itemsSummary = (ord.items || [])
+          .map((it) => `• ${it.name} (${it.quantity || 1} dona)`)
+          .join('\n');
+
+        const dateStr = ord.createdAt ? new Date(ord.createdAt).toLocaleString('uz-UZ') : '';
+
+        text +=
+          `<b>${index + 1}. Buyurtma #${ord.orderId}</b>\n` +
+          `📊 Holat: <b>${statusText}</b>\n` +
+          `💰 Summa: <b>${(ord.total || 0).toLocaleString()} so‘m</b>\n` +
+          (dateStr ? `📅 Sana: ${dateStr}\n` : '') +
+          (itemsSummary ? `${itemsSummary}\n` : '') +
+          `━━━━━━━━━━━━━━━━━━━━\n\n`;
       });
 
-      const todayRevenue = todayOrders.reduce((sum, ord) => sum + (ord.total || 0), 0);
+      return ctx.reply(text, {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('🔄 Yangilash', 'refresh_my_orders')],
+          [Markup.button.webApp('🛍️ Yangi buyurtma berish', this.getWebAppUrl())],
+        ]),
+      });
+    } catch (err) {
+      console.error('Send user orders error:', err);
+      ctx.reply('Buyurtmalarni yuklashda xatolik yuz berdi.');
+    }
+  }
 
-      const activeCount = await Order.countDocuments({
-        status: { $in: ['pending', 'confirmed', 'preparing', 'ready', 'assigned', 'delivering', 'on_the_way'] },
+  // Display Admin Menu
+  async sendAdminMenu(ctx, isEdit = false) {
+    const text =
+      `⚙️ <b>Qandolatxonasi Boshqaruv Paneli (Admin)</b>\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `Kerakli bo‘limni tanlang:`;
+
+    const keyboard = Markup.inlineKeyboard([
+      [
+        Markup.button.callback('📊 Statistika', 'adm_stats'),
+        Markup.button.callback('📢 Xabar yuborish', 'adm_broadcast'),
+      ],
+      [
+        Markup.button.callback('📢 Majburiy obuna', 'adm_channel'),
+        Markup.button.callback('📦 Faol buyurtmalar', 'adm_active_orders'),
+      ],
+      [Markup.button.url('🌐 Sayt Admin Paneli', `${this.clientUrl}/admin`)],
+    ]);
+
+    if (isEdit && ctx.callbackQuery) {
+      try {
+        return await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+      } catch (e) {}
+    }
+    return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
+  }
+
+  // Display Admin Stats
+  async sendAdminStats(ctx, isEdit = false) {
+    try {
+      const totalUsers = await User.countDocuments();
+      const telegramUsers = await User.countDocuments({ telegramId: { $ne: null } });
+      const totalOrders = await Order.countDocuments();
+      const pendingOrders = await Order.countDocuments({
+        status: { $in: ['pending', 'confirmed', 'preparing', 'delivering', 'on_the_way'] },
       });
 
-      const usersCount = await User.countDocuments();
-      const settings = (await Settings.findOne()) || { isStoreOpen: true };
+      // Today's stats
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
 
-      const adminMessage =
-        `⚙️ <b>BOL TORTLARI — ADMIN BOSHQARUV PORTALI</b>\n` +
+      const todayOrders = await Order.find({ createdAt: { $gte: startOfDay } });
+      const todayTotal = todayOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+      // All revenue
+      const deliveredOrders = await Order.find({ status: 'delivered' });
+      const totalDeliveredRevenue = deliveredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+      const text =
+        `📊 <b>Qandolatxonasi Statistikasi:</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━\n` +
-        `🏬 <b>Do‘kon holati:</b> ${settings.isStoreOpen ? '🟢 OCHIQ' : '🔴 YOPIQ'}\n` +
-        `💰 <b>Bugungi tushum:</b> <b>${todayRevenue.toLocaleString()} so‘m</b> (${todayOrders.length} ta buyurtma)\n` +
-        `⚡ <b>Faol buyurtmalar:</b> <b>${activeCount} ta</b>\n` +
-        `👥 <b>Jami mijozlar:</b> ${usersCount} ta\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `Quyidagi tugmalar orqali boshqaring yoki sayt admin paneliga kiring:\n` +
-        `🌐 ${this.clientUrl}/admin`;
+        `👥 <b>Foydalanuvchilar:</b>\n` +
+        `• Jami foydalanuvchilar: <b>${totalUsers} ta</b>\n` +
+        `• Telegramga ulanganlar: <b>${telegramUsers} ta</b>\n\n` +
+        `📦 <b>Buyurtmalar:</b>\n` +
+        `• Jami buyurtmalar: <b>${totalOrders} ta</b>\n` +
+        `• Kutilayotgan / Faol: <b>${pendingOrders} ta</b>\n` +
+        `• Bugungi yangi buyurtmalar: <b>${todayOrders.length} ta</b>\n\n` +
+        `💰 <b>Moliyaviy ko‘rsatkichlar:</b>\n` +
+        `• Bugungi tushum: <b>${todayTotal.toLocaleString()} so‘m</b>\n` +
+        `• Jami yetkazilgan tushum: <b>${totalDeliveredRevenue.toLocaleString()} so‘m</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━`;
 
       const keyboard = Markup.inlineKeyboard([
-        [Markup.button.callback(`📦 Faol buyurtmalar (${activeCount})`, 'adm_active_orders')],
-        [
-          Markup.button.callback(
-            settings.isStoreOpen ? '🔴 Do‘konni yopish' : '🟢 Do‘konni ochish',
-            'adm_toggle_store'
-          ),
-        ],
-        [Markup.button.callback('🔄 Yangilash', 'adm_refresh_stats')],
+        [Markup.button.callback('🔄 Yangilash', 'adm_stats')],
+        [Markup.button.callback('🔙 Admin panel', 'adm_menu')],
       ]);
 
-      await ctx.editMessageText(adminMessage, {
-        parse_mode: 'HTML',
-        ...keyboard,
-      });
-    } catch (e) {}
+      if (isEdit && ctx.callbackQuery) {
+        try {
+          return await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+        } catch (e) {}
+      }
+      return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
+    } catch (err) {
+      console.error('Send admin stats error:', err);
+      ctx.reply('Statistikani yuklashda xatolik yuz berdi.');
+    }
+  }
+
+  // Display Channel Config
+  async sendChannelConfig(ctx, isEdit = false) {
+    try {
+      const settings = (await Settings.findOne()) || {};
+      const isEnabled = Boolean(settings.isMandatorySubEnabled);
+      const channel = settings.mandatoryChannel || 'Belgilanmagan';
+
+      const text =
+        `📢 <b>Majburiy Obuna Sozlamalari:</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `• Holat: <b>${isEnabled ? '🟢 Yoqilgan' : '🔴 O‘chirilgan'}</b>\n` +
+        `• Kanal: <b>${channel}</b>\n\n` +
+        `<i>Agar yoqilsa, bot foydalanuvchilari ushbu kanalga obuna bo‘lmaguncha botdan foydalana olmaydilar.</i>`;
+
+      const keyboard = Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            isEnabled ? '🔴 Obunani o‘chirish' : '🟢 Obunani yoqish',
+            'adm_toggle_channel_sub'
+          ),
+        ],
+        [Markup.button.callback('✏️ Kanalni o‘zgartirish', 'adm_change_channel_name')],
+        [Markup.button.callback('🔙 Admin panel', 'adm_menu')],
+      ]);
+
+      if (isEdit && ctx.callbackQuery) {
+        try {
+          return await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+        } catch (e) {}
+      }
+      return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
+    } catch (err) {
+      console.error('Channel config error:', err);
+    }
   }
 
   /**
-   * Admin Notification: Send new order alert with interactive action buttons to Admin Telegram ID
+   * Notify Admin when a new order arrives
    */
   async notifyNewOrder(order) {
-    if (!this.bot || !this.adminChatId) return;
-
+    if (!this.bot || !order) return;
     try {
-      let itemsList = '';
-      if (Array.isArray(order.items)) {
-        order.items.forEach((it, idx) => {
-          const qty = it.quantity || 1;
-          const price = (it.price || 0) * qty;
-          itemsList += `${idx + 1}. <b>${it.name}</b> (${it.weight || it.size || 'Standart'}) x ${qty} — ${price.toLocaleString()} so‘m\n`;
-          if (it.customInscription) {
-            itemsList += `   ✍️ <i>Yozuv: "${it.customInscription}"</i>\n`;
-          }
-        });
-      }
-
-      const paymentMethodNames = {
-        cash: 'Naqd pul',
-        card: 'Bank kartasi',
-        payme: 'Payme',
-        click: 'Click',
-        wallet: 'Hamyon',
-      };
-      const paymentStatusNames = {
-        pending: '🟡 To‘lov kutilmoqda',
-        paid: '🟢 To‘langan',
-        failed: '🔴 Bekor',
-      };
+      const itemsList = (order.items || [])
+        .map((it, idx) => `${idx + 1}. <b>${it.name}</b> (${it.quantity} x ${(it.price || 0).toLocaleString()} so‘m)`)
+        .join('\n');
 
       const message =
         `🎂 <b>YANGI BUYURTMA #${order.orderId}</b>\n` +
@@ -1189,60 +915,92 @@ class TelegramBotService {
         `📞 <b>Telefon:</b> <code>${order.customer_phone}</code>\n` +
         `📍 <b>Manzil:</b> ${order.customer_address}\n` +
         `💰 <b>Jami summa:</b> <b>${(order.total || 0).toLocaleString()} so‘m</b>\n` +
-        `💳 <b>To‘lov usuli:</b> ${paymentMethodNames[order.payment_method] || order.payment_method} (${paymentStatusNames[order.payment_status] || order.payment_status})\n` +
         (order.notes ? `📝 <b>Izoh:</b> <i>${order.notes}</i>\n` : '') +
-        `\n🧁 <b>Mahsulotlar ro‘yxati:</b>\n${itemsList || 'Standart mahsulot'}\n` +
+        `\n🧁 <b>Mahsulotlar:</b>\n${itemsList || 'Standart mahsulot'}\n` +
         `━━━━━━━━━━━━━━━━━━━━\n` +
-        `Holatni o‘zgartirish uchun quyidagi tugmalarni bosing:`;
+        `Holatni o‘zgartirish uchun tugmalardan foydalaning:`;
 
       const keyboard = Markup.inlineKeyboard([
         [
           Markup.button.callback('✅ Qabul qilish', `ord_status:${order.orderId}:confirmed`),
-          Markup.button.callback('👨‍🍳 Tayyorlanmoqda', `ord_status:${order.orderId}:preparing`),
+          Markup.button.callback('👨‍🍳 Oshxona', `ord_status:${order.orderId}:preparing`),
         ],
         [
-          Markup.button.callback('🛵 Kuryerga berildi', `ord_status:${order.orderId}:on_the_way`),
+          Markup.button.callback('🛵 Kuryerda', `ord_status:${order.orderId}:on_the_way`),
           Markup.button.callback('🎉 Yetkazildi', `ord_status:${order.orderId}:delivered`),
         ],
-        [
-          Markup.button.callback('❌ Bekor qilish', `ord_status:${order.orderId}:cancelled`),
-        ],
+        [Markup.button.callback('❌ Bekor qilish', `ord_status:${order.orderId}:cancelled`)],
       ]);
 
       await this.bot.telegram.sendMessage(this.adminChatId, message, {
         parse_mode: 'HTML',
         ...keyboard,
       });
-      console.log(`✉️ Admin Telegramga yangi buyurtma yuborildi: #${order.orderId}`);
     } catch (err) {
       console.error('Telegram admin bildirishnomasini yuborishda xatolik:', err.message);
     }
   }
 
   /**
-   * Customer Notification: Notify customer on Telegram if they linked their account
+   * Notify customer when their order is first received
    */
-  async notifyCustomerOrderStatus(order) {
+  async notifyCustomerNewOrder(order) {
     if (!this.bot || !order) return;
-
     try {
       let customer = null;
       if (order.customer) {
         customer = await User.findById(order.customer);
       }
-
-      const telegramId = customer?.telegramId;
-      if (!telegramId) {
-        return; // Customer has not connected Telegram
+      if (!customer && order.customer_phone) {
+        customer = await User.findOne({ phone: order.customer_phone });
       }
 
+      const telegramId = customer?.telegramId;
+      if (!telegramId) return;
+
+      const text =
+        `🎉 <b>Buyurtmangiz qabul qilindi!</b>\n\n` +
+        `Hurmatli <b>${order.customer_name}</b>, sizning buyurtmangiz muvaffaqiyatli ro‘yxatga olindi.\n\n` +
+        `• Buyurtma raqami: <b>#${order.orderId}</b>\n` +
+        `• Jami summa: <b>${(order.total || 0).toLocaleString()} so‘m</b>\n` +
+        `• Holati: <b>🟡 Kutilmoqda</b>\n\n` +
+        `Tez orada ma’muriyatimiz buyurtmangizni tasdiqlaydi va tayyorlashni boshlaydi!`;
+
+      await this.bot.telegram.sendMessage(telegramId, text, {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([
+          [Markup.button.webApp('🌐 Buyurtmalarimni ko‘rish', this.getWebAppUrl())],
+        ]),
+      });
+    } catch (err) {
+      console.error('Notify customer new order error:', err.message);
+    }
+  }
+
+  /**
+   * Customer Notification: Notify customer when order status changes (confirmed, preparing, etc.)
+   */
+  async notifyCustomerOrderStatus(order) {
+    if (!this.bot || !order) return;
+    try {
+      let customer = null;
+      if (order.customer) {
+        customer = await User.findById(order.customer);
+      }
+      if (!customer && order.customer_phone) {
+        customer = await User.findOne({ phone: order.customer_phone });
+      }
+
+      const telegramId = customer?.telegramId;
+      if (!telegramId) return;
+
       const statusMessages = {
-        confirmed: '✅ <b>Buyurtmangiz tasdiqlandi!</b>\nQandolatchilarimiz tez orada tayyorlashga kirishadilar.',
-        preparing: '👨‍🍳 <b>Buyurtmangiz tayyorlanmoqda!</b>\nSiz uchun eng toza va sifatli masalliqlardan shirinlik pishirilmoqda.',
+        confirmed: '🟢 <b>Buyurtmangiz tasdiqlandi va qabul qilindi!</b>\nQandolatchilarimiz tez orada tayyorlashga kirishadilar.',
+        preparing: '👨‍🍳 <b>Buyurtmangiz tayyorlanmoqda!</b>\nSiz uchun eng toza va sifatli masalliqlardan shirinlik tayyorlanmoqda.',
         ready: '🧁 <b>Buyurtmangiz tayyor bo‘ldi!</b>\nQadoqlanib, yetkazib berish bo‘limiga yo‘naltirildi.',
         delivering: '🛵 <b>Buyurtmangiz kuryerda va yo‘lga chiqdi!</b>\nTez orada kuryerimiz ko‘rsatilgan manzilga yetib boradi.',
         on_the_way: '🛵 <b>Buyurtmangiz kuryerda va yo‘lga chiqdi!</b>\nTez orada kuryerimiz ko‘rsatilgan manzilga yetib boradi.',
-        delivered: '🎉 <b>Buyurtmangiz yetkazib berildi!</b>\nBayramingiz shirin va unutilmas o‘tsin. Mahsulot va xizmat sifatini saytimizda baholab fikr qoldirishni unutmang!',
+        delivered: '🎉 <b>Buyurtmangiz yetkazib berildi!</b>\nYoqimli ishtaha! Bayramingiz shirin va unutilmas o‘tsin.',
         cancelled: '❌ <b>Buyurtmangiz bekor qilindi.</b>\nSavollaringiz bo‘lsa, biz bilan bog‘laning.',
       };
 
@@ -1250,21 +1008,18 @@ class TelegramBotService {
 
       const text =
         `📦 <b>Buyurtmangiz holati yangilandi!</b>\n\n` +
-        `Buyurtma raqami: <b>#${order.orderId}</b>\n` +
-        `Joriy holat: <b>${STATUS_LABELS[order.status] || order.status}</b>\n\n` +
+        `• Buyurtma raqami: <b>#${order.orderId}</b>\n` +
+        `• Holat: <b>${STATUS_LABELS[order.status] || order.status}</b>\n\n` +
         `${customMsg}\n\n` +
         `💰 Jami: <b>${(order.total || 0).toLocaleString()} so‘m</b>\n` +
-        `📍 Manzil: ${order.customer_address}\n\n` +
-        `🌐 Kuzatish: ${this.clientUrl}/orders`;
-
-      const inline = this.getInlineWebButton('⚡ Saytda kuzatish', '/orders');
+        `📍 Manzil: ${order.customer_address}`;
 
       await this.bot.telegram.sendMessage(telegramId, text, {
         parse_mode: 'HTML',
-        ...(inline || {}),
+        ...Markup.inlineKeyboard([
+          [Markup.button.webApp('🌐 Web Appda ko‘rish', this.getWebAppUrl())],
+        ]),
       });
-
-      console.log(`✉️ Xaridor Telegramiga (#${order.orderId}) xabar yetkazildi (ID: ${telegramId})`);
     } catch (err) {
       console.error('Xaridorga Telegram xabari yuborishda xatolik:', err.message);
     }

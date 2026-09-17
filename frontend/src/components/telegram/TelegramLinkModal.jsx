@@ -253,9 +253,11 @@ const TelegramLinkModal = ({ isOpen, onClose }) => {
                   </button>
                 </div>
 
-                <p className="text-[10px] text-center text-[#9CA3AF] pt-1">
-                  💡 Telegramda <b>"Start"</b> bosishingiz bilanoq bu oyna avtomatik tasdiqlanadi.
-                </p>
+                <div className="p-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 text-center">
+                  <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                    💡 Bot: <b>@{linkData.botUsername || 'boltortlarbot'}</b> • Tugmani bosing yoki botga <code>{linkData.token}</code> kodini yuboring.
+                  </p>
+                </div>
               </div>
             ) : (
               <button

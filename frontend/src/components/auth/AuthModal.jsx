@@ -603,7 +603,7 @@ const AuthModal = ({ isOpen, onClose }) => {
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="misol@gmail.com"
-                    className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#0F1012] border border-[#E7E9ED] dark:border-[#272A30] rounded-xl text-sm focus:outline-none focus:border-[#D97706] focus:ring-2 focus:ring-[#D97706]/20 transition-all placeholder:text-[#9CA3AF]"
+                    className="w-full pl-10 pr-3 py-2 bg-white dark:bg-[#0F1012] border border-[#E7E9ED] dark:border-[#272A30] rounded-xl text-sm focus:outline-none focus:border-[#D97706] focus:ring-2 focus:ring-[#D97706]/20 transition-all placeholder:text-[#9CA3AF]"
                   />
                   <Mail className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
@@ -619,7 +619,7 @@ const AuthModal = ({ isOpen, onClose }) => {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+998 90 123 45 67"
-                    className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#0F1012] border border-[#E7E9ED] dark:border-[#272A30] rounded-xl text-sm focus:outline-none focus:border-[#D97706] focus:ring-2 focus:ring-[#D97706]/20 transition-all placeholder:text-[#9CA3AF]"
+                    className="w-full pl-10 pr-3 py-2 bg-white dark:bg-[#0F1012] border border-[#E7E9ED] dark:border-[#272A30] rounded-xl text-sm focus:outline-none focus:border-[#D97706] focus:ring-2 focus:ring-[#D97706]/20 transition-all placeholder:text-[#9CA3AF]"
                   />
                   <Phone className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>

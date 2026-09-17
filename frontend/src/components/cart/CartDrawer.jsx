@@ -433,7 +433,8 @@ const CartDrawer = () => {
                       value={formData.customer_name}
                       onChange={handleInputChange}
                       placeholder={t('cart.name_placeholder', 'Jasur Alimov')}
-                      className="w-full pl-9.5 pr-3 py-2.5 bg-[#FBFBFC] dark:bg-[#1F2228] border border-[#E5E7EB] dark:border-[#26282E] rounded-xl text-xs text-[#111827] dark:text-[#F3F4F6] focus:border-[#2563EB] outline-none"
+                      style={{ paddingLeft: '2.75rem' }}
+                      className="w-full pl-11 pr-3 py-2.5 bg-[#FBFBFC] dark:bg-[#1F2228] border border-[#E5E7EB] dark:border-[#26282E] rounded-xl text-xs text-[#111827] dark:text-[#F3F4F6] focus:border-[#2563EB] outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -452,7 +453,8 @@ const CartDrawer = () => {
                       value={formData.customer_phone}
                       onChange={handleInputChange}
                       placeholder={t('cart.phone_placeholder', '+998 90 123 45 67')}
-                      className="w-full pl-9.5 pr-3 py-2.5 bg-[#FBFBFC] dark:bg-[#1F2228] border border-[#E5E7EB] dark:border-[#26282E] rounded-xl text-xs text-[#111827] dark:text-[#F3F4F6] focus:border-[#2563EB] outline-none"
+                      style={{ paddingLeft: '2.75rem' }}
+                      className="w-full pl-11 pr-3 py-2.5 bg-[#FBFBFC] dark:bg-[#1F2228] border border-[#E5E7EB] dark:border-[#26282E] rounded-xl text-xs text-[#111827] dark:text-[#F3F4F6] focus:border-[#2563EB] outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -475,7 +477,8 @@ const CartDrawer = () => {
                       value={formData.customer_email}
                       onChange={handleInputChange}
                       placeholder="jasur@example.com"
-                      className="w-full pl-9.5 pr-3 py-2.5 bg-[#FBFBFC] dark:bg-[#1F2228] border border-[#E5E7EB] dark:border-[#26282E] rounded-xl text-xs text-[#111827] dark:text-[#F3F4F6] focus:border-[#2563EB] outline-none"
+                      style={{ paddingLeft: '2.75rem' }}
+                      className="w-full pl-11 pr-3 py-2.5 bg-[#FBFBFC] dark:bg-[#1F2228] border border-[#E5E7EB] dark:border-[#26282E] rounded-xl text-xs text-[#111827] dark:text-[#F3F4F6] focus:border-[#2563EB] outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -494,7 +497,8 @@ const CartDrawer = () => {
                       value={formData.customer_address}
                       onChange={handleInputChange}
                       placeholder={t('cart.address_placeholder', 'Farg‘ona viloyati, Uchko‘prik tumani, Mustaqillik ko‘chasi, 12-uy')}
-                      className="w-full pl-9.5 pr-3 py-2.5 bg-[#FBFBFC] dark:bg-[#1F2228] border border-[#E5E7EB] dark:border-[#26282E] rounded-xl text-xs text-[#111827] dark:text-[#F3F4F6] focus:border-[#2563EB] outline-none resize-none"
+                      style={{ paddingLeft: '2.75rem', paddingTop: '0.625rem' }}
+                      className="w-full pl-11 pr-3 py-2.5 bg-[#FBFBFC] dark:bg-[#1F2228] border border-[#E5E7EB] dark:border-[#26282E] rounded-xl text-xs text-[#111827] dark:text-[#F3F4F6] focus:border-[#2563EB] outline-none resize-none transition-colors"
                     />
                   </div>
                 </div>

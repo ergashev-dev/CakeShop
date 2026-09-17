@@ -254,6 +254,9 @@ export const orderController = {
       // Telegram Bot Admin notification
       telegramBotService.notifyNewOrder(order);
 
+      // Telegram Bot Customer notification (if linked)
+      telegramBotService.notifyCustomerNewOrder(order);
+
       // Create Admin Notification
       await Notification.create({
         recipientRole: 'admins',
