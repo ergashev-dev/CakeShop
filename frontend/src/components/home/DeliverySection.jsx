@@ -14,7 +14,7 @@ const DeliverySection = () => {
           
           {/* Left Column */}
           <div className="lg:col-span-6">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EFF6FF] text-[#2563EB] text-xs font-semibold mb-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 text-[#2563EB] dark:text-[#60A5FA] text-xs font-semibold mb-3 border border-[#BFDBFE]/60 dark:border-[#1E3A8A]/50 animate-pulse-subtle">
               <Truck className="w-3.5 h-3.5" />
               <span>{t('delivery_section.badge', 'Yetkazib berish')}</span>
             </div>
@@ -28,29 +28,29 @@ const DeliverySection = () => {
             </p>
 
             <div className="flex items-center gap-4 mb-6">
-              <a href="tel:+998901234567">
-                <Button variant="primary" size="md" icon={Phone} iconPosition="left">
+              <a href="tel:+998901234567" className="group">
+                <Button variant="primary" size="md" icon={Phone} iconPosition="left" className="shadow-subtle group-hover:shadow-md active:scale-95">
                   +998 (90) 123-45-67
                 </Button>
               </a>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138]">
-                <Clock className="w-4 h-4 text-[#2563EB] mb-1" />
+              <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138] card-interactive hover:border-blue-500/30 group">
+                <Clock className="w-4 h-4 text-[#2563EB] mb-1.5 group-hover:scale-110 transition-transform" />
                 <div className="font-semibold text-[#17181A] dark:text-[#F3F4F6]">
                   {t('delivery_section.hours_title', '08:00 – 22:00')}
                 </div>
-                <div className="text-[11px] text-[#6B7280]">
+                <div className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF]">
                   {t('delivery_section.hours_desc', 'Dam olishsiz har kuni')}
                 </div>
               </div>
-              <div className="p-3 rounded-lg bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138]">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 mb-1" />
+              <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138] card-interactive hover:border-emerald-500/30 group">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 mb-1.5 group-hover:scale-110 transition-transform" />
                 <div className="font-semibold text-[#17181A] dark:text-[#F3F4F6]">
                   {t('delivery_section.guarantee_title', '100% Butunlik')}
                 </div>
-                <div className="text-[11px] text-[#6B7280]">
+                <div className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF]">
                   {t('delivery_section.guarantee_desc', 'Xavfsiz topshirish kafolati')}
                 </div>
               </div>
@@ -59,10 +59,10 @@ const DeliverySection = () => {
 
           {/* Right Column: Service Quality Features */}
           <div className="lg:col-span-6">
-            <Card padding="p-6" className="space-y-4">
+            <Card padding="p-6" className="space-y-4 shadow-subtle hover:shadow-card card-interactive hover:border-amber-400/30 group/main">
               <div className="flex items-center gap-3 pb-3 border-b border-[#E7E9ED] dark:border-[#2E3138]">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center">
-                  <Truck className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover/main:scale-110 transition-transform duration-300">
+                  <Truck className="w-5 h-5 group-hover/main:translate-x-0.5 transition-transform" />
                 </div>
                 <div>
                   <h3 className="font-bold text-sm sm:text-base text-[#17181A] dark:text-[#F3F4F6]">
@@ -75,7 +75,7 @@ const DeliverySection = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138]">
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138] card-interactive hover:border-blue-400/30">
                   <div className="font-semibold text-xs text-[#17181A] dark:text-[#F3F4F6] mb-1">
                     {t('delivery_section.thermo_title', '❄️ Termo-sovutgichli avto')}
                   </div>
@@ -84,7 +84,7 @@ const DeliverySection = () => {
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138]">
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138] card-interactive hover:border-blue-400/30">
                   <div className="font-semibold text-xs text-[#17181A] dark:text-[#F3F4F6] mb-1">
                     {t('delivery_section.time_title', '⏱️ Aniq vaqtga yetkazish')}
                   </div>
@@ -93,7 +93,7 @@ const DeliverySection = () => {
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138]">
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138] card-interactive hover:border-blue-400/30">
                   <div className="font-semibold text-xs text-[#17181A] dark:text-[#F3F4F6] mb-1">
                     {t('delivery_section.box_title', '📦 Maxsus xavfsiz quti')}
                   </div>
@@ -102,7 +102,7 @@ const DeliverySection = () => {
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138]">
+                <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] border border-[#E7E9ED] dark:border-[#2E3138] card-interactive hover:border-blue-400/30">
                   <div className="font-semibold text-xs text-[#17181A] dark:text-[#F3F4F6] mb-1">
                     {t('delivery_section.respect_title', '🤝 Ehtirom bilan topshirish')}
                   </div>

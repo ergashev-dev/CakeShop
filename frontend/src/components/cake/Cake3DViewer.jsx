@@ -530,10 +530,19 @@ const Cake3DViewer = ({
 
   return (
     <div className="relative w-full rounded-2xl overflow-hidden bg-gradient-to-b from-stone-100/80 via-white to-amber-50/40 dark:from-[#181B22] dark:via-[#14161C] dark:to-[#101217] border border-amber-200/50 dark:border-amber-500/20 shadow-xl transition-all">
+      {/* Ambient Turntable Glow in Canvas Center */}
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+        <div className="w-52 h-52 rounded-full bg-gradient-to-r from-amber-400/15 via-rose-400/10 to-blue-400/15 blur-2xl animate-pulse-subtle" />
+      </div>
+
       {/* Header Info Overlay */}
       <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10 pointer-events-none">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/85 dark:bg-black/70 backdrop-blur-md border border-stone-200/60 dark:border-stone-700/60 text-[11px] font-bold text-[#2563EB] dark:text-[#93C5FD] shadow-xs">
-          <Sparkles className="w-3 h-3 text-amber-500 animate-pulse-subtle" />
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/90 dark:bg-black/75 backdrop-blur-md border border-stone-200/60 dark:border-stone-700/60 text-[11px] font-bold text-[#2563EB] dark:text-[#93C5FD] shadow-xs">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <Sparkles className="w-3 h-3 text-amber-500 animate-star-twinkle" />
           <span>Real-Vaqt 3D Studiya</span>
         </div>
 
@@ -541,7 +550,7 @@ const Cake3DViewer = ({
           <button
             type="button"
             onClick={handleResetView}
-            className="p-1.5 rounded-lg bg-white/85 dark:bg-black/70 backdrop-blur-md border border-stone-200/60 dark:border-stone-700/60 hover:bg-stone-100 dark:hover:bg-stone-800 text-[#4B5563] dark:text-[#D1D5DB] text-xs cursor-pointer transition-colors shadow-xs"
+            className="p-1.5 rounded-lg bg-white/85 dark:bg-black/70 backdrop-blur-md border border-stone-200/60 dark:border-stone-700/60 hover:bg-stone-100 dark:hover:bg-stone-800 text-[#4B5563] dark:text-[#D1D5DB] text-xs cursor-pointer transition-all shadow-xs hover:scale-110 active:scale-95"
             title="Kamera holatini tiklash"
           >
             <RotateCw className="w-3.5 h-3.5" />
@@ -549,7 +558,7 @@ const Cake3DViewer = ({
           <button
             type="button"
             onClick={() => setIsRotating(!isRotating)}
-            className={`px-2.5 py-1 rounded-lg backdrop-blur-md border text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-xs ${
+            className={`px-2.5 py-1 rounded-lg backdrop-blur-md border text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-all shadow-xs hover:scale-105 active:scale-95 ${
               isRotating
                 ? 'bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-300'
                 : 'bg-white/85 dark:bg-black/70 border-stone-200/60 dark:border-stone-700/60 text-[#4B5563] dark:text-[#D1D5DB]'
@@ -575,7 +584,7 @@ const Cake3DViewer = ({
           <span>Surib aylantiring</span>
         </div>
 
-        <div className="px-2.5 py-1 rounded-lg bg-amber-500/15 backdrop-blur-md border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold">
+        <div className="px-2.5 py-1 rounded-lg bg-amber-500/15 backdrop-blur-md border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold animate-pulse-subtle">
           {tierCount} qavatli tort ({weightId})
         </div>
       </div>

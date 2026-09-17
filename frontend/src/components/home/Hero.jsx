@@ -175,10 +175,30 @@ const Hero = () => {
           {/* Right Column: Hero Visual Showcase (Auto-Alternating with Smooth Animations) */}
           <div className="lg:col-span-5 relative">
             {/* Ambient Confectionery Glow */}
-            <div className="absolute -inset-2 bg-gradient-to-tr from-amber-500/20 via-blue-500/15 to-rose-500/20 rounded-3xl blur-2xl opacity-75 pointer-events-none" />
+            <div className="absolute -inset-3 bg-gradient-to-tr from-amber-500/25 via-rose-500/20 to-blue-500/25 rounded-3xl blur-2xl opacity-80 pointer-events-none animate-pulse-subtle" />
+
+            {/* Floating Trust Badge 1 (Top Left) */}
+            <div className="absolute -top-3.5 -left-3 sm:-left-5 z-20 px-3 py-1.5 rounded-xl bg-white/95 dark:bg-[#1A1D24]/95 border border-amber-300/70 dark:border-amber-500/40 shadow-xl backdrop-blur-md flex items-center gap-2 animate-float-slow select-none pointer-events-none">
+              <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center text-[10px] font-black">
+                ★
+              </span>
+              <div className="text-[11px] font-bold text-[#111827] dark:text-[#F3F4F6]">
+                100% Tabiiy Sariyog‘
+              </div>
+            </div>
+
+            {/* Floating Trust Badge 2 (Bottom Right) */}
+            <div className="hidden sm:flex absolute -bottom-3 -right-3 z-20 px-3 py-1.5 rounded-xl bg-white/95 dark:bg-[#1A1D24]/95 border border-blue-300/70 dark:border-blue-500/40 shadow-xl backdrop-blur-md items-center gap-2 animate-float-delayed select-none pointer-events-none">
+              <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[10px]">
+                🚚
+              </span>
+              <div className="text-[11px] font-bold text-[#111827] dark:text-[#F3F4F6]">
+                Sovutgichli Yetkazish
+              </div>
+            </div>
 
             <div
-              className="relative rounded-2xl overflow-hidden border border-amber-200/60 dark:border-amber-500/20 shadow-2xl bg-[#F3F4F6] dark:bg-[#1C1F26] aspect-[4/3] sm:aspect-[5/4] group select-none"
+              className="relative rounded-2xl overflow-hidden border border-amber-200/60 dark:border-amber-500/20 shadow-2xl bg-[#F3F4F6] dark:bg-[#1C1F26] aspect-[4/3] sm:aspect-[5/4] group select-none transition-all duration-300 hover:shadow-amber-500/10"
               onMouseEnter={() => setIsPaused(true)}
               onMouseLeave={() => setIsPaused(false)}
             >
@@ -198,7 +218,7 @@ const Hero = () => {
               <button
                 type="button"
                 onClick={handlePrev}
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/65 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-md"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/65 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-md hover:scale-110 active:scale-95"
                 aria-label="Oldingi tort"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -207,14 +227,14 @@ const Hero = () => {
               <button
                 type="button"
                 onClick={handleNext}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/65 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-md"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/65 text-white flex items-center justify-center backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-md hover:scale-110 active:scale-95"
                 aria-label="Keyingi tort"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
 
               {/* Floating Information Glass Card */}
-              <div className="absolute bottom-3 left-3 right-3 p-3.5 rounded-xl bg-white/95 dark:bg-[#16181D]/95 border border-[#E5E7EB] dark:border-[#26282E] backdrop-blur-md shadow-lg flex items-center justify-between transition-all">
+              <div className="absolute bottom-3 left-3 right-3 p-3.5 rounded-xl bg-white/95 dark:bg-[#16181D]/95 border border-[#E5E7EB] dark:border-[#26282E] backdrop-blur-md shadow-lg flex items-center justify-between transition-all group-hover:translate-y-[-2px]">
                 <div className="pr-2">
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <span className="text-[10px] uppercase font-extrabold text-[#2563EB] dark:text-[#60A5FA] tracking-wider block">
@@ -232,7 +252,7 @@ const Hero = () => {
 
                 <div className="flex flex-col items-end shrink-0">
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-900/60 mb-1">
-                    <Star className="w-3 h-3 fill-amber-400 stroke-amber-400" />
+                    <Star className="w-3 h-3 fill-amber-400 stroke-amber-400 animate-star-twinkle" />
                     {activeCake.rating}
                   </span>
                   <span className="text-xs font-black text-[#111827] dark:text-[#F3F4F6]">

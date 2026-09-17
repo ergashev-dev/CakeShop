@@ -49,7 +49,7 @@ const CakeCard = ({ cake, className = '' }) => {
 
   return (
     <div
-      className={`group relative bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl overflow-hidden shadow-subtle hover:shadow-hover transition-all duration-250 flex flex-col justify-between ${
+      className={`group relative bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl overflow-hidden shadow-subtle hover:shadow-hover card-interactive hover:border-blue-500/30 dark:hover:border-blue-400/20 transition-all duration-300 flex flex-col justify-between ${
         isOutOfStock ? 'opacity-70 grayscale-[35%]' : ''
       } ${className}`}
     >
@@ -63,7 +63,7 @@ const CakeCard = ({ cake, className = '' }) => {
             src={cake.image || DEFAULT_CAKE_IMAGE}
             alt={cake.name}
             onError={handleImageError}
-            className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-108"
             loading="lazy"
           />
 
@@ -75,12 +75,12 @@ const CakeCard = ({ cake, className = '' }) => {
               </span>
             )}
             {cake.is_popular && !isOutOfStock && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-[#EFF6FF] dark:bg-[#1E3A8A]/90 text-[#2563EB] dark:text-[#93C5FD] border border-[#BFDBFE]/60 dark:border-[#1E3A8A] shadow-xs uppercase tracking-wider">
-                <Sparkles className="w-2.5 h-2.5" /> {t('cake.popular', 'Mashhur')}
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-[#EFF6FF] dark:bg-[#1E3A8A]/90 text-[#2563EB] dark:text-[#93C5FD] border border-[#BFDBFE]/60 dark:border-[#1E3A8A] shadow-xs uppercase tracking-wider shimmer-badge">
+                <Sparkles className="w-2.5 h-2.5 animate-star-twinkle" /> {t('cake.popular', 'Mashhur')}
               </span>
             )}
             {hasRealDiscount && !isOutOfStock && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-600 text-white shadow-xs">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-600 text-white shadow-xs animate-pulse-subtle">
                 {discountPercent ? `-${discountPercent}%` : t('cake.discount', 'Chegirma')}
               </span>
             )}
@@ -96,7 +96,7 @@ const CakeCard = ({ cake, className = '' }) => {
             type="button"
             onClick={handleToggleFavorite}
             aria-label={isFav ? t('favorites.remove', "Sevimlilardan olib tashlash") : t('favorites.title', "Sevimlilarga qo‘shish")}
-            className={`absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-200 cursor-pointer shadow-subtle hover:scale-110 active:scale-95 ${
+            className={`absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-200 cursor-pointer shadow-subtle hover:scale-115 active:scale-90 ${
               isFav
                 ? 'bg-rose-500 text-white shadow-rose-500/30'
                 : 'bg-white/90 dark:bg-[#16181D]/90 text-[#6B7280] hover:text-rose-500 dark:text-[#9CA3AF] dark:hover:text-rose-400 border border-[#E5E7EB] dark:border-[#26282E]'
@@ -111,7 +111,7 @@ const CakeCard = ({ cake, className = '' }) => {
           {/* Rating & Weight */}
           <div className="flex items-center justify-between gap-2 text-[11px] text-[#6B7280] dark:text-[#9CA3AF] mb-1.5">
             <div className="flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
-              <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
+              <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400 group-hover:rotate-12 transition-transform duration-300" />
               <span>{displayRating}</span>
             </div>
             <span>{cake.weight ? `${cake.weight} ${t('cake.from', 'dan')}` : `1.5 kg ${t('cake.from', 'dan')}`}</span>
@@ -160,15 +160,15 @@ const CakeCard = ({ cake, className = '' }) => {
               isOutOfStock
                 ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed shadow-none'
                 : isAdded
-                ? 'bg-emerald-600 text-white shadow-subtle cursor-pointer'
-                : 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white hover:shadow-md cursor-pointer active:scale-95 shadow-subtle'
+                ? 'bg-emerald-600 text-white shadow-subtle cursor-pointer scale-105'
+                : 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white hover:shadow-md cursor-pointer active:scale-95 hover:scale-103 shadow-subtle'
             }`}
           >
             {isOutOfStock ? (
               <span>{t('cake.out_of_stock_btn', 'Tugagan')}</span>
             ) : isAdded ? (
               <>
-                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                <Check className="w-3.5 h-3.5 stroke-[2.5] animate-bounce-subtle" />
                 <span>{t('cake.added', 'Qo‘shildi')}</span>
               </>
             ) : (

@@ -154,13 +154,13 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
               {/* Wishlist Button (Tablet & Desktop; Mobile uses bottom bar & drawer) */}
               <Link
                 to="/favorites"
-                className="relative hidden sm:flex p-2 text-[#4B5563] hover:text-rose-500 dark:text-[#9CA3AF] dark:hover:text-rose-400 hover:bg-[#F3F4F6] dark:hover:bg-[#1F2228] rounded-xl transition-colors cursor-pointer"
+                className="relative hidden sm:flex p-2 text-[#4B5563] hover:text-rose-500 dark:text-[#9CA3AF] dark:hover:text-rose-400 hover:bg-[#F3F4F6] dark:hover:bg-[#1F2228] rounded-xl transition-all cursor-pointer hover:scale-110 active:scale-95"
                 aria-label="Sevimlilar"
                 title="Sevimlilar"
               >
                 <Heart className="w-4 h-4" />
                 {wishlistCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shadow-xs animate-pulse-subtle">
                     {wishlistCount}
                   </span>
                 )}
@@ -169,14 +169,14 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
               {/* Shopping Cart Button */}
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 hover:bg-[#DBEAFE] dark:hover:bg-[#1E3A8A]/50 border border-[#BFDBFE]/60 dark:border-[#1E3A8A] rounded-xl text-xs font-semibold text-[#2563EB] dark:text-[#93C5FD] transition-colors cursor-pointer"
+                className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 hover:bg-[#DBEAFE] dark:hover:bg-[#1E3A8A]/50 border border-[#BFDBFE]/60 dark:border-[#1E3A8A] rounded-xl text-xs font-semibold text-[#2563EB] dark:text-[#93C5FD] transition-all cursor-pointer card-interactive hover:scale-103 active:scale-95 shadow-xs"
                 aria-label={t('nav.cart', 'Savat')}
                 title={t('nav.cart', 'Savat')}
               >
                 <div className="relative flex items-center">
                   <ShoppingBag className="w-4 h-4" />
                   {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-[#2563EB] text-white text-[10px] font-extrabold flex items-center justify-center shadow-xs">
+                    <span className="absolute -top-2 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-[#2563EB] text-white text-[10px] font-extrabold flex items-center justify-center shadow-xs animate-pulse-subtle">
                       {cartCount}
                     </span>
                   )}
