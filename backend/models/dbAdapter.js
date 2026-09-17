@@ -224,6 +224,10 @@ const migrations = [
   "ALTER TABLE users ADD COLUMN authProvider TEXT DEFAULT 'local'",
   "ALTER TABLE settings ADD COLUMN mandatoryChannel TEXT DEFAULT ''",
   "ALTER TABLE settings ADD COLUMN isMandatorySubEnabled INTEGER DEFAULT 0",
+  "ALTER TABLE settings ADD COLUMN contactInstagram TEXT DEFAULT 'boltortlari_uz'",
+  "ALTER TABLE cakes ADD COLUMN in_stock INTEGER DEFAULT 1",
+  "ALTER TABLE orders ADD COLUMN location_lat REAL DEFAULT 0",
+  "ALTER TABLE orders ADD COLUMN location_lng REAL DEFAULT 0",
 ];
 
 for (const sql of migrations) {
@@ -289,6 +293,7 @@ function wrapDoc(tableName, row) {
   if (doc.isRead !== undefined) doc.isRead = Boolean(doc.isRead);
   if (doc.isStoreOpen !== undefined) doc.isStoreOpen = Boolean(doc.isStoreOpen);
   if (doc.isVerifiedBuyer !== undefined) doc.isVerifiedBuyer = Boolean(doc.isVerifiedBuyer);
+  if (doc.in_stock !== undefined) doc.in_stock = Boolean(doc.in_stock);
 
   if (doc.items_json) {
     try {

@@ -102,4 +102,26 @@ export const reviewController = {
       return res.status(500).json({ error: 'Javob yozishda xatolik yuz berdi.' });
     }
   },
+
+  /**
+   * Delete review (Admin only)
+   */
+  async deleteReview(req, res) {
+    try {
+      const { id } = req.params;
+      const review = await Review.findById(id);
+      if (!review) {
+        return res.status(404).json({ error: 'Sharh topilmadi.' });
+      }
+
+      await Review.findByIdAndDelete(id);
+
+      return res.json({
+        message: 'Sharh muvaffaqiyatli o‘chirildi.',
+      });
+    } catch (error) {
+      console.error('Delete review error:', error);
+      return res.status(500).json({ error: 'Sharhni o‘chirishda xatolik yuz berdi.' });
+    }
+  },
 };

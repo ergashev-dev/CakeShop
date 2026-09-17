@@ -17,6 +17,7 @@ import {
   Tag,
   Check,
   Clock,
+  Map,
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -24,6 +25,7 @@ import { orderApi, promoApi } from '../../services/api';
 import { formatPrice } from '../../utils/formatters';
 import { handleImageError, DEFAULT_CAKE_IMAGE } from '../../utils/imageFallback';
 import PaymentModal from '../payment/PaymentModal';
+import LocationPickerModal from '../map/LocationPickerModal';
 
 const CartDrawer = () => {
   const { t } = useTranslation();
@@ -52,6 +54,11 @@ const CartDrawer = () => {
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState('');
   const [promoLoading, setPromoLoading] = useState(false);
+
+  // Geolocation & Map states (MUST be declared before any conditional return)
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [locationCoords, setLocationCoords] = useState({ lat: 0, lng: 0 });
 
   // Form fields
   const [formData, setFormData] = useState({
@@ -83,8 +90,6 @@ const CartDrawer = () => {
       setConfirmedOrder(null);
     }
   };
-
-  if (!isCartOpen) return null;
 
   // Calculate discount and delivery
   const discountAmount = appliedPromo
@@ -119,8 +124,6 @@ const CartDrawer = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const [detectingLocation, setDetectingLocation] = useState(false);
-
   const handleDetectLocation = () => {
     if (!('geolocation' in navigator)) {
       setErrorMessage('Qurilmangizda geolokatsiya qo‘llab-quvvatlanmaydi.');
@@ -131,6 +134,7 @@ const CartDrawer = () => {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
+        setLocationCoords({ lat: latitude, lng: longitude });
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
@@ -143,17 +147,17 @@ const CartDrawer = () => {
         } catch {
           setFormData((prev) => ({
             ...prev,
-            customer_address: `Joylashuv (GPS): ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+            customer_address: `Joylashuv: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
           }));
         } finally {
           setDetectingLocation(false);
         }
       },
       () => {
+        setErrorMessage('Joylashuvni aniqlab bo‘lmadi. Xaritadan o‘zingiz belgilang.');
         setDetectingLocation(false);
-        setErrorMessage('Joylashuvni aniqlab bo‘lmadi. Iltimos, brauzerda geolokatsiyaga ruxsat bering.');
       },
-      { timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
@@ -167,6 +171,8 @@ const CartDrawer = () => {
         customer_phone: formData.customer_phone.trim(),
         customer_email: formData.customer_email.trim() || undefined,
         customer_address: formData.customer_address.trim(),
+        location_lat: locationCoords.lat || undefined,
+        location_lng: locationCoords.lng || undefined,
         notes: formData.notes.trim() || undefined,
         payment_method: paymentDetails.payment_method || formData.payment_method,
         payment_status: paymentDetails.payment_status || 'pending',
@@ -234,6 +240,8 @@ const CartDrawer = () => {
       payment_status: 'pending',
     });
   };
+
+  if (!isCartOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -543,16 +551,27 @@ const CartDrawer = () => {
                     <label className="block text-xs font-semibold text-[#111827] dark:text-[#F3F4F6]">
                       {t('cart.address', 'Yetkazib berish manzili')} *
                     </label>
-                    <button
-                      type="button"
-                      onClick={handleDetectLocation}
-                      disabled={detectingLocation}
-                      className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-[#2563EB] dark:text-[#93C5FD] text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                      title="GPS orqali joriy joylashuvni aniqlash"
-                    >
-                      <MapPin className="w-3 h-3" />
-                      <span>{detectingLocation ? 'Aniqlanmoqda...' : '📍 Joylashuvimni aniqlash'}</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setIsMapModalOpen(true)}
+                        className="px-2.5 py-1 rounded-lg bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 hover:bg-[#DBEAFE] dark:hover:bg-[#1E3A8A]/50 text-[#2563EB] dark:text-[#93C5FD] text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer border border-[#BFDBFE]/60 dark:border-[#1E3A8A]"
+                        title="Xaritada joylashuvni tanlash"
+                      >
+                        <Map className="w-3 h-3" />
+                        <span>🗺️ Xarita</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDetectLocation}
+                        disabled={detectingLocation}
+                        className="px-2 py-1 rounded-lg bg-[#F3F4F6] dark:bg-[#1F2228] hover:bg-[#E5E7EB] dark:hover:bg-[#26282E] text-[#4B5563] dark:text-[#9CA3AF] text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="GPS orqali joriy joylashuvni aniqlash"
+                      >
+                        <MapPin className="w-3 h-3 text-[#2563EB]" />
+                        <span>{detectingLocation ? 'Aniqlanmoqda...' : '📍 GPS'}</span>
+                      </button>
+                    </div>
                   </div>
                   <div className="relative">
                     <MapPin className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-3 pointer-events-none" />
@@ -750,6 +769,17 @@ const CartDrawer = () => {
               }}
             />
           )}
+
+          {/* In-App Interactive Map Modal */}
+          <LocationPickerModal
+            isOpen={isMapModalOpen}
+            onClose={() => setIsMapModalOpen(false)}
+            initialAddress={formData.customer_address}
+            onSelectLocation={({ address, lat, lng }) => {
+              setFormData((prev) => ({ ...prev, customer_address: address }));
+              setLocationCoords({ lat, lng });
+            }}
+          />
 
         </div>
       </div>

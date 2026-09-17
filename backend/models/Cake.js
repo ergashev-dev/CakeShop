@@ -15,6 +15,7 @@ const cakeSchema = new mongoose.Schema(
     image: { type: String, default: '' },
     is_popular: { type: Boolean, default: false, index: true },
     isActive: { type: Boolean, default: true, index: true },
+    in_stock: { type: Boolean, default: true, index: true },
     salesCount: { type: Number, default: 0 },
   },
   { timestamps: true }
@@ -103,13 +104,14 @@ class CakeProxy {
       image: data.image || '',
       is_popular: data.is_popular ? 1 : 0,
       isActive: data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1,
+      in_stock: data.in_stock !== undefined ? (data.in_stock ? 1 : 0) : 1,
       salesCount: 0,
       createdAt: new Date().toISOString(),
     };
 
     sqlite.prepare(`
-      INSERT INTO cakes (_id, name, category_slug, category_name, price, weight, description, ingredients, image, is_popular, isActive, salesCount, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO cakes (_id, name, category_slug, category_name, price, weight, description, ingredients, image, is_popular, isActive, in_stock, salesCount, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       doc._id,
       doc.name,
@@ -122,6 +124,7 @@ class CakeProxy {
       doc.image,
       doc.is_popular,
       doc.isActive,
+      doc.in_stock,
       doc.salesCount,
       doc.createdAt
     );

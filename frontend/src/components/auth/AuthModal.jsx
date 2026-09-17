@@ -468,7 +468,7 @@ const AuthModal = ({ isOpen, onClose }) => {
                   required
                   value={loginIdentifier}
                   onChange={(e) => setLoginIdentifier(e.target.value)}
-                  placeholder="admin yoki info@example.com"
+                  placeholder="info@example.com yoki telefon"
                   className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0F1012] border border-[#E7E9ED] dark:border-[#272A30] rounded-xl text-sm focus:outline-none focus:border-[#D97706] focus:ring-2 focus:ring-[#D97706]/20 transition-all placeholder:text-[#9CA3AF]"
                 />
                 <User className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-1/2 -translate-y-1/2" />

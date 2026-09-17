@@ -278,7 +278,7 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
                         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#0088cc] hover:bg-[#0088cc]/10 rounded-xl transition-colors text-left cursor-pointer"
                       >
                         <Send className="w-4 h-4" />
-                        <span>{t('nav.connect_telegram', 'Telegramga ulash')}</span>
+                        <span>{user.telegramId ? 'Telegram ulandi' : t('nav.connect_telegram', 'Telegramga ulash')}</span>
                         {user.telegramId ? (
                           <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 font-bold">
                             Ulangan
@@ -401,7 +401,7 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
                 >
                   <div className="flex items-center gap-2">
                     <Send className="w-4 h-4" />
-                    <span>{t('nav.connect_telegram', 'Telegramga ulash')}</span>
+                    <span>{user.telegramId ? 'Telegram ulandi' : t('nav.connect_telegram', 'Telegramga ulash')}</span>
                   </div>
                   {user.telegramId ? (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">

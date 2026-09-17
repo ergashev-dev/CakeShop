@@ -42,9 +42,16 @@ const CakeCard = ({ cake, className = '' }) => {
     ? Math.round(((cake.oldPrice - cake.price) / cake.oldPrice) * 100)
     : (cake.discount || null);
 
+  const isOutOfStock = cake.in_stock === false || cake.isActive === false;
+  const displayRating = cake.average_rating
+    ? Number(cake.average_rating).toFixed(1)
+    : (cake.rating ? Number(cake.rating).toFixed(1) : '4.9');
+
   return (
     <div
-      className={`group relative bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl overflow-hidden shadow-subtle hover:shadow-hover transition-all duration-250 flex flex-col justify-between ${className}`}
+      className={`group relative bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl overflow-hidden shadow-subtle hover:shadow-hover transition-all duration-250 flex flex-col justify-between ${
+        isOutOfStock ? 'opacity-70 grayscale-[35%]' : ''
+      } ${className}`}
     >
       <div>
         {/* Product Image Container */}
@@ -62,12 +69,17 @@ const CakeCard = ({ cake, className = '' }) => {
 
           {/* Badges on Top-Left */}
           <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10 pointer-events-none">
-            {cake.is_popular && (
+            {isOutOfStock && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold bg-zinc-700/90 text-white shadow-xs backdrop-blur-xs">
+                {t('cake.out_of_stock', 'Tugagan')}
+              </span>
+            )}
+            {cake.is_popular && !isOutOfStock && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-[#EFF6FF] dark:bg-[#1E3A8A]/90 text-[#2563EB] dark:text-[#93C5FD] border border-[#BFDBFE]/60 dark:border-[#1E3A8A] shadow-xs uppercase tracking-wider">
                 <Sparkles className="w-2.5 h-2.5" /> {t('cake.popular', 'Mashhur')}
               </span>
             )}
-            {hasRealDiscount && (
+            {hasRealDiscount && !isOutOfStock && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-600 text-white shadow-xs">
                 {discountPercent ? `-${discountPercent}%` : t('cake.discount', 'Chegirma')}
               </span>
@@ -100,7 +112,7 @@ const CakeCard = ({ cake, className = '' }) => {
           <div className="flex items-center justify-between gap-2 text-[11px] text-[#6B7280] dark:text-[#9CA3AF] mb-1.5">
             <div className="flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
               <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
-              <span>4.9</span>
+              <span>{displayRating}</span>
             </div>
             <span>{cake.weight ? `${cake.weight} ${t('cake.from', 'dan')}` : `1.5 kg ${t('cake.from', 'dan')}`}</span>
           </div>
@@ -142,13 +154,19 @@ const CakeCard = ({ cake, className = '' }) => {
 
           <button
             onClick={handleAddToCart}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer shadow-subtle active:scale-95 ${
-              isAdded
-                ? 'bg-emerald-600 text-white'
-                : 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white hover:shadow-md'
+            disabled={isOutOfStock}
+            title={isOutOfStock ? 'Ushbu tort vaqtincha sotuvda mavjud emas' : t('cake.add_to_cart', 'Savatga')}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
+              isOutOfStock
+                ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed shadow-none'
+                : isAdded
+                ? 'bg-emerald-600 text-white shadow-subtle cursor-pointer'
+                : 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white hover:shadow-md cursor-pointer active:scale-95 shadow-subtle'
             }`}
           >
-            {isAdded ? (
+            {isOutOfStock ? (
+              <span>{t('cake.out_of_stock_btn', 'Tugagan')}</span>
+            ) : isAdded ? (
               <>
                 <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                 <span>{t('cake.added', 'Qo‘shildi')}</span>

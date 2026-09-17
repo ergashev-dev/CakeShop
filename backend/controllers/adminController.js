@@ -321,8 +321,8 @@ export const adminController = {
         return res.status(404).json({ error: 'Xodim topilmadi.' });
       }
 
-      if (['superadmin', 'super_admin'].includes(targetUser.role)) {
-        return res.status(403).json({ error: 'Super Adminni o‘chirish mumkin emas.' });
+      if (['superadmin', 'super_admin'].includes(targetUser.role) || targetUser.email === 'eabdurashid72@gmail.com') {
+        return res.status(403).json({ error: 'Bosh Administratorni (Super Admin) o‘chirish mumkin emas.' });
       }
 
       await User.deleteOne({ _id: id });
@@ -354,8 +354,8 @@ export const adminController = {
         return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
       }
 
-      if (['superadmin', 'super_admin'].includes(targetUser.role)) {
-        return res.status(403).json({ error: 'Super Adminni bloklash mumkin emas.' });
+      if (['superadmin', 'super_admin'].includes(targetUser.role) || targetUser.email === 'eabdurashid72@gmail.com') {
+        return res.status(403).json({ error: 'Bosh Administratorni (Super Admin) bloklash mumkin emas.' });
       }
 
       targetUser.isBlocked = !targetUser.isBlocked;

@@ -237,6 +237,8 @@ export const orderController = {
         status: 'pending',
         payment_method: payment_method || 'cash',
         payment_status: paymentStatus,
+        location_lat: Number(req.body.location_lat) || 0,
+        location_lng: Number(req.body.location_lng) || 0,
         customCakeConfig: customCakeConfig || null,
         status_history: [
           {
@@ -428,6 +430,23 @@ export const orderController = {
       const validStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'assigned', 'delivering', 'on_the_way', 'delivered', 'cancelled'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ error: 'Noto‘g‘ri buyurtma holati.' });
+      }
+
+      const userRole = req.user?.role || 'user';
+      if (userRole === 'confectioner') {
+        const allowedForConfectioner = ['pending', 'confirmed', 'preparing', 'ready'];
+        if (!allowedForConfectioner.includes(status)) {
+          return res.status(403).json({
+            error: 'Konditer (qandolatchi) faqat «Pishirilmoqda» va «Tayyor» holatlarini o‘rnatishi mumkin. «Yetkazilmoqda» yoki «Yetkazildi» amalini faqat kuryer yoki admin bajara oladi.',
+          });
+        }
+      } else if (userRole === 'courier') {
+        const allowedForCourier = ['ready', 'delivering', 'on_the_way', 'delivered'];
+        if (!allowedForCourier.includes(status)) {
+          return res.status(403).json({
+            error: 'Kuryer faqat «Yetkazilmoqda» yoki «Yetkazildi» holatlarini belgilay oladi.',
+          });
+        }
       }
 
       const order = await findOrderSafely(id);

@@ -12,6 +12,7 @@ const settingsSchema = new mongoose.Schema(
     workingHours: { type: String, default: '09:00 - 21:00' },
     contactPhone: { type: String, default: '+998 (90) 123-45-67' },
     contactTelegram: { type: String, default: '@boltortlari_admin' },
+    contactInstagram: { type: String, default: 'boltortlari_uz' },
     contactAddress: { type: String, default: 'Toshkent sh., Navoiy ko‘chasi 14' },
     mandatoryChannel: { type: String, default: '' },
     isMandatorySubEnabled: { type: Boolean, default: false },
@@ -49,13 +50,14 @@ class SettingsProxy {
       workingHours: data.workingHours || '09:00 - 21:00',
       contactPhone: data.contactPhone || '+998 (90) 123-45-67',
       contactTelegram: data.contactTelegram || '@boltortlari_admin',
+      contactInstagram: data.contactInstagram || 'boltortlari_uz',
       contactAddress: data.contactAddress || 'Toshkent sh., Navoiy ko‘chasi 14',
       createdAt: new Date().toISOString(),
     };
 
     sqlite.prepare(`
-      INSERT INTO settings (_id, isStoreOpen, cashbackPercent, deliveryFee, deliveryFeeOutside, freeDeliveryThreshold, workingHours, contactPhone, contactTelegram, contactAddress, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO settings (_id, isStoreOpen, cashbackPercent, deliveryFee, deliveryFeeOutside, freeDeliveryThreshold, workingHours, contactPhone, contactTelegram, contactInstagram, contactAddress, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       doc._id,
       doc.isStoreOpen,
@@ -66,6 +68,7 @@ class SettingsProxy {
       doc.workingHours,
       doc.contactPhone,
       doc.contactTelegram,
+      doc.contactInstagram,
       doc.contactAddress,
       doc.createdAt
     );

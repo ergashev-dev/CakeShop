@@ -204,9 +204,16 @@ const CakeDetailsPage = () => {
           <div className="lg:col-span-5 flex flex-col justify-between">
             <div className="space-y-5">
               <div>
-                <span className="text-xs font-semibold text-[#2563EB] uppercase tracking-wider block mb-1">
-                  {cake.category_name || 'Premium Tort'}
-                </span>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-semibold text-[#2563EB] uppercase tracking-wider block">
+                    {cake.category_name || 'Premium Tort'}
+                  </span>
+                  {(cake.in_stock === false || cake.isActive === false) && (
+                    <span className="px-2 py-0.5 rounded-md bg-zinc-700 text-white text-[10px] font-bold">
+                      Tugagan
+                    </span>
+                  )}
+                </div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-[#111827] dark:text-[#F3F4F6] tracking-tight">
                   {cake.name}
                 </h1>
@@ -216,11 +223,13 @@ const CakeDetailsPage = () => {
                   <div className="flex items-center text-amber-500">
                     <Star className="w-4 h-4 fill-amber-400 stroke-amber-400" />
                     <span className="ml-1 text-xs font-bold text-[#111827] dark:text-[#F3F4F6]">
-                      4.9
+                      {reviews.length > 0
+                        ? (reviews.reduce((s, r) => s + (r.rating || 5), 0) / reviews.length).toFixed(1)
+                        : (cake.rating ? Number(cake.rating).toFixed(1) : '4.9')}
                     </span>
                   </div>
                   <span className="text-xs text-[#6B7280] dark:text-[#9CA3AF]">
-                    (120+ mijoz baholagan)
+                    ({reviews.length} {t('cake_details.reviews_count', 'ta haqiqiy sharh')})
                   </span>
                   <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                     <ShieldCheck className="w-3.5 h-3.5" /> Halol & Tabiiy
@@ -292,11 +301,18 @@ const CakeDetailsPage = () => {
 
                   <button
                     onClick={handleAddToCart}
-                    className="flex-1 py-3 px-4 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                    disabled={cake.in_stock === false || cake.isActive === false}
+                    className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-colors ${
+                      cake.in_stock === false || cake.isActive === false
+                        ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed shadow-none'
+                        : 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white cursor-pointer'
+                    }`}
                   >
                     <ShoppingBag className="w-4 h-4" />
                     <span>
-                      {isAdded
+                      {cake.in_stock === false || cake.isActive === false
+                        ? 'Hozirda mavjud emas (Tugagan)'
+                        : isAdded
                         ? t('cake.added', 'Savatga qo‘shildi!')
                         : `${t('cake_details.add_to_cart', 'Savatga qo‘shish')} • ${totalPrice.toLocaleString()} so‘m`}
                     </span>

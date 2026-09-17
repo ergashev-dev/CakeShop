@@ -94,6 +94,7 @@ export const reviewApi = {
   getAll: (cakeId) => api.get('/reviews', { params: { cakeId } }),
   create: (data) => api.post('/reviews', data),
   reply: (id, text) => api.post(`/reviews/${id}/reply`, { text }),
+  delete: (id) => api.delete(`/reviews/${id}`),
 };
 
 export const bugApi = {
