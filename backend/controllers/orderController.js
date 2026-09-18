@@ -314,7 +314,7 @@ export const orderController = {
   },
 
   /**
-   * Get Kitchen Queue Orders (Confectioner portal: confirmed, preparing)
+   * Get Kitchen Queue Orders (Confectioner portal: pending, confirmed, preparing)
    */
   async getKitchenOrders(req, res) {
     try {
@@ -326,7 +326,21 @@ export const orderController = {
   },
 
   /**
-   * Confectioner updates status: preparing -> ready
+   * Get Kitchen History Orders (Confectioner history: ready, delivering, delivered)
+   */
+  async getKitchenHistory(req, res) {
+    try {
+      const orders = await Order.find({
+        status: ['ready', 'assigned', 'delivering', 'on_the_way', 'delivered'],
+      }).sort({ updatedAt: -1, createdAt: -1 }).limit(100);
+      return res.json({ orders });
+    } catch (error) {
+      return res.status(500).json({ error: 'Oshxona tarixini yuklashda xatolik.' });
+    }
+  },
+
+  /**
+   * Confectioner updates status: preparing <-> ready <-> confirmed
    */
   async updateKitchenStatus(req, res) {
     try {
@@ -374,10 +388,22 @@ export const orderController = {
    */
   async getCourierOrders(req, res) {
     try {
-      const orders = await Order.find({ status: ['ready', 'assigned', 'delivering'] });
+      const orders = await Order.find({ status: ['ready', 'assigned', 'delivering'] }).sort({ createdAt: -1 });
       return res.json({ orders });
     } catch (error) {
       return res.status(500).json({ error: 'Kuryer buyurtmalarini yuklashda xatolik.' });
+    }
+  },
+
+  /**
+   * Get Courier Delivery History (Delivered orders)
+   */
+  async getCourierHistory(req, res) {
+    try {
+      const orders = await Order.find({ status: 'delivered' }).sort({ updatedAt: -1, createdAt: -1 }).limit(100);
+      return res.json({ orders });
+    } catch (error) {
+      return res.status(500).json({ error: 'Yetkazish tarixini yuklashda xatolik.' });
     }
   },
 

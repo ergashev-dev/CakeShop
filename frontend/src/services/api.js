@@ -79,10 +79,13 @@ export const orderApi = {
   updateStatus: (id, status) => api.patch(`/orders/${id}/status`, { status }),
   // Kitchen
   getKitchenOrders: () => api.get('/orders/kitchen'),
+  getKitchenHistory: () => api.get('/orders/kitchen/history'),
   updateKitchenStatus: (id, status, kitchenNotes) =>
     api.patch(`/orders/kitchen/${id}`, { status, kitchenNotes }),
   // Courier
   getCourierOrders: () => api.get('/orders/courier'),
+  getCourierHistory: () => api.get('/orders/courier/history'),
+  courierTakeOrder: (id) => api.post(`/orders/courier/${id}/take`),
   confirmDelivery: (id) => api.post(`/orders/courier/${id}/deliver`),
   // Stars payment confirmation
   confirmStars: (id, data) => api.post(`/orders/${id}/confirm-stars`, data),

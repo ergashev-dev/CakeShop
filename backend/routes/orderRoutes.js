@@ -13,12 +13,14 @@ router.post('/', paymentLimiter, authMiddleware, orderController.createOrder);
 router.get('/user', authMiddleware, orderController.getUserOrders);
 router.get('/my-orders', authMiddleware, orderController.getUserOrders);
 
-// Kitchen queue (Confectioner)
+// Kitchen queue & history (Confectioner)
 router.get('/kitchen', authMiddleware, confectionerMiddleware, orderController.getKitchenOrders);
+router.get('/kitchen/history', authMiddleware, confectionerMiddleware, orderController.getKitchenHistory);
 router.patch('/kitchen/:id', authMiddleware, confectionerMiddleware, orderController.updateKitchenStatus);
 
-// Courier queue (Courier)
+// Courier queue & history (Courier)
 router.get('/courier', authMiddleware, courierMiddleware, orderController.getCourierOrders);
+router.get('/courier/history', authMiddleware, courierMiddleware, orderController.getCourierHistory);
 router.post('/courier/:id/take', authMiddleware, courierMiddleware, orderController.courierTakeOrder);
 router.post('/courier/:id/deliver', authMiddleware, courierMiddleware, orderController.confirmDelivery);
 

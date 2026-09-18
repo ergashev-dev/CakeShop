@@ -115,7 +115,11 @@ const AdminPage = () => {
 
   const [orders, setOrders] = useState([]);
   const [kitchenOrders, setKitchenOrders] = useState([]);
+  const [kitchenHistory, setKitchenHistory] = useState([]);
+  const [kitchenSubTab, setKitchenSubTab] = useState('active');
   const [courierOrders, setCourierOrders] = useState([]);
+  const [courierHistory, setCourierHistory] = useState([]);
+  const [courierSubTab, setCourierSubTab] = useState('active');
   const [cakes, setCakes] = useState([]);
   const [categories, setCategories] = useState([]);
   const [usersList, setUsersList] = useState([]);
@@ -307,12 +311,20 @@ const AdminPage = () => {
       setCategories(catRes.data?.categories || []);
 
       if (isConfectioner || isAdminRole) {
-        const kRes = await orderApi.getKitchenOrders();
+        const [kRes, khRes] = await Promise.all([
+          orderApi.getKitchenOrders(),
+          orderApi.getKitchenHistory().catch(() => ({ data: { orders: [] } })),
+        ]);
         setKitchenOrders(kRes.data?.orders || []);
+        setKitchenHistory(khRes.data?.orders || []);
       }
       if (isCourier || isAdminRole) {
-        const cRes = await orderApi.getCourierOrders();
+        const [cRes, chRes] = await Promise.all([
+          orderApi.getCourierOrders(),
+          orderApi.getCourierHistory().catch(() => ({ data: { orders: [] } })),
+        ]);
         setCourierOrders(cRes.data?.orders || []);
+        setCourierHistory(chRes.data?.orders || []);
       }
     } catch (err) {
       console.error('Error loading primary data:', err);
@@ -329,7 +341,21 @@ const AdminPage = () => {
   useEffect(() => {
     const loadTabData = async () => {
       try {
-        if (activeTab === 'users' && isAdminRole) {
+        if (activeTab === 'kitchen' && (isConfectioner || isAdminRole)) {
+          const [kRes, khRes] = await Promise.all([
+            orderApi.getKitchenOrders(),
+            orderApi.getKitchenHistory().catch(() => ({ data: { orders: [] } })),
+          ]);
+          setKitchenOrders(kRes.data?.orders || []);
+          setKitchenHistory(khRes.data?.orders || []);
+        } else if (activeTab === 'courier' && (isCourier || isAdminRole)) {
+          const [cRes, chRes] = await Promise.all([
+            orderApi.getCourierOrders(),
+            orderApi.getCourierHistory().catch(() => ({ data: { orders: [] } })),
+          ]);
+          setCourierOrders(cRes.data?.orders || []);
+          setCourierHistory(chRes.data?.orders || []);
+        } else if (activeTab === 'users' && isAdminRole) {
           const res = await adminApi.getUsers();
           setUsersList(res.data?.users || []);
         } else if (activeTab === 'staff' && isSuperAdmin) {
@@ -438,50 +464,65 @@ const AdminPage = () => {
     }
   };
 
-  // Confectioner: preparing -> ready
-  const handleKitchenReady = async (orderId) => {
+  // Confectioner: status change (preparing <-> ready <-> confirmed <-> pending)
+  const handleKitchenStatusChange = async (orderId, newStatus, notes) => {
     try {
       setActionLoading(true);
-      await orderApi.updateKitchenStatus(orderId, 'ready');
-      setKitchenOrders((prev) => prev.filter((o) => o.orderId !== orderId));
-      showToast(`Buyurtma #${orderId} tayyor deb belgilandi!`);
-    } catch (err) {
-      showToast('Yangilashda xatolik.', 'error');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Courier: ready -> delivering
-  const handleCourierTake = async (orderId) => {
-    try {
-      setActionLoading(true);
-      await api.post(`/orders/courier/${orderId}/take`);
-      setCourierOrders((prev) =>
-        prev.map((o) => (o.orderId === orderId ? { ...o, status: 'delivering' } : o))
+      await orderApi.updateKitchenStatus(orderId, newStatus, notes);
+      const [kRes, khRes] = await Promise.all([
+        orderApi.getKitchenOrders(),
+        orderApi.getKitchenHistory().catch(() => ({ data: { orders: [] } })),
+      ]);
+      setKitchenOrders(kRes.data?.orders || []);
+      setKitchenHistory(khRes.data?.orders || []);
+      setOrders((prev) =>
+        prev.map((ord) => (ord.orderId === orderId ? { ...ord, status: newStatus } : ord))
       );
-      showToast(`Buyurtma #${orderId} yetkazishga olindi. Yo‘lga chiqildi!`);
+      showToast(`Buyurtma #${orderId} holati «${newStatus}»ga o‘zgartirildi!`);
     } catch (err) {
-      showToast('Yetkazishga olishda xatolik.', 'error');
+      showToast(err.response?.data?.error || 'Yangilashda xatolik.', 'error');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Courier: confirm delivery
-  const handleCourierDeliver = async (orderId) => {
-    if (!window.confirm(`Buyurtma #${orderId} mijozga yetkazilganini tasdiqlaysizmi?`)) return;
+  const handleKitchenReady = (orderId) => handleKitchenStatusChange(orderId, 'ready');
+
+  // Courier: status change (ready <-> delivering <-> delivered)
+  const handleCourierStatusChange = async (orderId, newStatus) => {
     try {
       setActionLoading(true);
-      await orderApi.confirmDelivery(orderId);
-      setCourierOrders((prev) => prev.filter((o) => o.orderId !== orderId));
-      showToast(`Buyurtma #${orderId} yetkazildi deb tasdiqlandi. Keshbek berildi!`);
+      if (newStatus === 'delivered') {
+        if (!window.confirm(`Buyurtma #${orderId} yetkazilganini tasdiqlaysizmi?`)) {
+          setActionLoading(false);
+          return;
+        }
+        await orderApi.confirmDelivery(orderId);
+      } else if (newStatus === 'delivering') {
+        await orderApi.courierTakeOrder(orderId);
+      } else {
+        await orderApi.updateStatus(orderId, newStatus);
+      }
+
+      const [cRes, chRes] = await Promise.all([
+        orderApi.getCourierOrders(),
+        orderApi.getCourierHistory().catch(() => ({ data: { orders: [] } })),
+      ]);
+      setCourierOrders(cRes.data?.orders || []);
+      setCourierHistory(chRes.data?.orders || []);
+      setOrders((prev) =>
+        prev.map((ord) => (ord.orderId === orderId ? { ...ord, status: newStatus } : ord))
+      );
+      showToast(`Buyurtma #${orderId} holati «${newStatus}»ga o‘zgartirildi!`);
     } catch (err) {
-      showToast('Tasdiqlashda xatolik.', 'error');
+      showToast(err.response?.data?.error || 'Yangilashda xatolik.', 'error');
     } finally {
       setActionLoading(false);
     }
   };
+
+  const handleCourierTake = (orderId) => handleCourierStatusChange(orderId, 'delivering');
+  const handleCourierDeliver = (orderId) => handleCourierStatusChange(orderId, 'delivered');
 
   // Staff creation
   const handleCreateStaffSubmit = async (e) => {
@@ -1813,190 +1854,421 @@ const AdminPage = () => {
             </div>
           )}
 
-          {/* 2. KITCHEN QUEUE (Qandolatchi oshxonasi) */}
+          {/* 2. KITCHEN QUEUE & HISTORY (Qandolatchi oshxonasi) */}
           {activeTab === 'kitchen' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
+              {/* Header & Sub-Tabs */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-bold">Oshxona Tayyorlash Navbati</h3>
+                  <h3 className="text-lg font-bold">Oshxona & Qandolatchi Portali</h3>
                   <p className="text-xs text-[#6B7280]">
-                    Pishirilishi va bezatilishi kerak bo‘lgan navbatdagi buyurtmalar chiptalari.
+                    Pishirilishi kerak bo‘lgan navbatdagi buyurtmalar va tayyorlangan tortlar tarixi.
                   </p>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold">
-                  {kitchenOrders.length} ta pishirishda
-                </span>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setKitchenSubTab('active')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      kitchenSubTab === 'active'
+                        ? 'bg-[#2563EB] text-white shadow-xs'
+                        : 'bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] text-[#4B5563] dark:text-[#9CA3AF]'
+                    }`}
+                  >
+                    <ChefHat className="w-3.5 h-3.5" />
+                    <span>Faol Oshxona ({kitchenOrders.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setKitchenSubTab('history')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      kitchenSubTab === 'history'
+                        ? 'bg-[#2563EB] text-white shadow-xs'
+                        : 'bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] text-[#4B5563] dark:text-[#9CA3AF]'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Oshxona Tarixi ({kitchenHistory.length})</span>
+                  </button>
+                </div>
               </div>
 
-              {kitchenOrders.length === 0 ? (
-                <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-16 text-center shadow-card">
-                  <ChefHat className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3 opacity-50" />
-                  <h4 className="text-base font-bold">Oshxona navbatida buyurtmalar yo‘q</h4>
-                  <p className="text-xs text-[#6B7280] mt-1">Barcha tortlar o‘z vaqtida tayyorlangan!</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {kitchenOrders.map((ord) => (
-                    <div
-                      key={ord._id}
-                      className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-6 shadow-card flex flex-col justify-between"
-                    >
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-start pb-3 border-b border-[#E7E9ED] dark:border-[#272A30]">
-                          <div className="max-w-[200px]">
-                            <span className="font-mono text-xs font-extrabold text-[#2563EB]">#{ord.orderId}</span>
-                            <h4 className="text-sm font-bold mt-0.5 truncate" title={ord.customer_name}>{ord.customer_name}</h4>
-                          </div>
-                          {getStatusBadge(ord.status)}
-                        </div>
-
-                        {/* Items list */}
-                        <div className="space-y-2">
-                          <span className="text-[10px] uppercase font-bold text-[#6B7280] block">Retsept va tarkib:</span>
-                          {ord.items && ord.items.map((item, idx) => (
-                            <div key={idx} className="p-3 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] text-xs">
-                              <div className="flex justify-between font-bold">
-                                <span>{item.name}</span>
-                                <span>{item.weight} × {item.quantity}</span>
+              {/* Sub-Tab 1: Active Kitchen Queue */}
+              {kitchenSubTab === 'active' && (
+                <>
+                  {kitchenOrders.length === 0 ? (
+                    <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-16 text-center shadow-card">
+                      <ChefHat className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3 opacity-50" />
+                      <h4 className="text-base font-bold">Oshxona navbatida yangi buyurtmalar yo‘q</h4>
+                      <p className="text-xs text-[#6B7280] mt-1">Barcha tortlar o‘z vaqtida pishirilgan va tayyorlangan!</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {kitchenOrders.map((ord) => (
+                        <div
+                          key={ord._id}
+                          className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-6 shadow-card flex flex-col justify-between card-hover-lift"
+                        >
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-start pb-3 border-b border-[#E7E9ED] dark:border-[#272A30]">
+                              <div className="max-w-[200px]">
+                                <span className="font-mono text-xs font-extrabold text-[#2563EB]">#{ord.orderId}</span>
+                                <h4 className="text-sm font-bold mt-0.5 truncate" title={ord.customer_name}>{ord.customer_name}</h4>
                               </div>
-                              {item.customSpecs && (
-                                <div className="mt-2 text-[11px] space-y-1 text-[#4B5563] dark:text-[#9CA3AF] border-t border-[#E7E9ED] dark:border-[#2E3138] pt-2">
-                                  <div><span className="font-semibold">Biskvit:</span> {item.customSpecs.biscuit}</div>
-                                  <div><span className="font-semibold">Krem:</span> {item.customSpecs.cream}</div>
-                                  <div><span className="font-semibold">Bezak:</span> {item.customSpecs.decor}</div>
-                                  {item.customSpecs.greetingText && (
-                                    <div className="text-[#2563EB] font-serif italic">
-                                      Tabrik xati: «{item.customSpecs.greetingText}»
+                              {getStatusBadge(ord.status)}
+                            </div>
+
+                            {/* Items list */}
+                            <div className="space-y-2">
+                              <span className="text-[10px] uppercase font-bold text-[#6B7280] block">Retsept va tarkib:</span>
+                              {ord.items && ord.items.map((item, idx) => (
+                                <div key={idx} className="p-3 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] text-xs">
+                                  <div className="flex justify-between font-bold">
+                                    <span>{item.name}</span>
+                                    <span>{item.weight} × {item.quantity}</span>
+                                  </div>
+                                  {item.customSpecs && (
+                                    <div className="mt-2 text-[11px] space-y-1 text-[#4B5563] dark:text-[#9CA3AF] border-t border-[#E7E9ED] dark:border-[#2E3138] pt-2">
+                                      <div><span className="font-semibold">Biskvit:</span> {item.customSpecs.biscuit}</div>
+                                      <div><span className="font-semibold">Krem:</span> {item.customSpecs.cream}</div>
+                                      <div><span className="font-semibold">Bezak:</span> {item.customSpecs.decor}</div>
+                                      {item.customSpecs.greetingText && (
+                                        <div className="text-[#2563EB] font-serif italic">
+                                          Tabrik xati: «{item.customSpecs.greetingText}»
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
-                              )}
+                              ))}
                             </div>
-                          ))}
-                        </div>
 
-                        {ord.notes && (
-                          <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-900/20 text-xs text-amber-800 dark:text-amber-300">
-                            <span className="font-bold">Mijoz izohi:</span> {ord.notes}
+                            {ord.notes && (
+                              <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-900/20 text-xs text-amber-800 dark:text-amber-300">
+                                <span className="font-bold">Mijoz izohi:</span> {ord.notes}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
 
-                      {/* Ready button */}
-                      <div className="pt-4 mt-4 border-t border-[#E7E9ED] dark:border-[#272A30]">
-                        <button
-                          onClick={() => handleKitchenReady(ord.orderId)}
-                          className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Pishirildi & Tayyorlandi</span>
-                        </button>
-                      </div>
+                          {/* Confectioner Action & Status Controls */}
+                          <div className="pt-4 mt-4 border-t border-[#E7E9ED] dark:border-[#272A30] space-y-2">
+                            {ord.status === 'preparing' ? (
+                              <button
+                                onClick={() => handleKitchenStatusChange(ord.orderId, 'ready')}
+                                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>Pishirildi & Tayyor (Kuryerga uzatish)</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleKitchenStatusChange(ord.orderId, 'preparing')}
+                                className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                              >
+                                <ChefHat className="w-4 h-4" />
+                                <span>Pishirishni boshlash (Jarayonda)</span>
+                              </button>
+                            )}
+
+                            {/* Status Change Selector */}
+                            <div className="flex items-center gap-2 pt-1">
+                              <span className="text-[10px] text-[#6B7280] font-semibold whitespace-nowrap">Holatni o‘zgartirish:</span>
+                              <div className="flex-1">
+                                <CustomSelect
+                                  value={ord.status}
+                                  onChange={(val) => handleKitchenStatusChange(ord.orderId, val)}
+                                  size="sm"
+                                  options={[
+                                    { value: 'pending', label: 'Kutilmoqda' },
+                                    { value: 'confirmed', label: 'Tasdiqlangan' },
+                                    { value: 'preparing', label: 'Pishirilmoqda' },
+                                    { value: 'ready', label: 'Tayyor' },
+                                  ]}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                </>
+              )}
+
+              {/* Sub-Tab 2: Kitchen History */}
+              {kitchenSubTab === 'history' && (
+                <div className="space-y-4">
+                  {kitchenHistory.length === 0 ? (
+                    <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-16 text-center shadow-card">
+                      <Clock className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3 opacity-50" />
+                      <h4 className="text-base font-bold">Oshxona tarixi bo‘sh</h4>
+                      <p className="text-xs text-[#6B7280] mt-1">Tayyorlangan tortlar ro‘yxati bu yerda saqlanadi.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {kitchenHistory.map((ord) => (
+                        <div
+                          key={ord._id}
+                          className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-5 shadow-card space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-[#2563EB]">#{ord.orderId}</span>
+                              <span className="text-xs font-bold truncate max-w-[140px]">{ord.customer_name}</span>
+                            </div>
+                            {getStatusBadge(ord.status)}
+                          </div>
+
+                          {/* Items summary */}
+                          <div className="p-2.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1E2026] text-xs space-y-1">
+                            {ord.items?.map((item, idx) => (
+                              <div key={idx} className="flex justify-between text-[11px]">
+                                <span className="font-semibold">{item.name} ({item.weight || '1.5 kg'})</span>
+                                <span>x{item.quantity || 1}</span>
+                              </div>
+                            ))}
+                            {ord.customCakeConfig?.greetingText && (
+                              <div className="text-[10px] text-[#2563EB] italic pt-1 border-t border-gray-200 dark:border-gray-700">
+                                Tabrik: «{ord.customCakeConfig.greetingText}»
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Status Revert / Adjustment */}
+                          <div className="flex items-center justify-between pt-2 border-t border-[#E7E9ED] dark:border-[#272A30] text-xs">
+                            <span className="text-[10px] text-[#6B7280]">Holatni qayta sozlash:</span>
+                            <div className="w-40">
+                              <CustomSelect
+                                value={ord.status}
+                                onChange={(val) => handleKitchenStatusChange(ord.orderId, val)}
+                                size="sm"
+                                options={[
+                                  { value: 'pending', label: 'Kutilmoqda' },
+                                  { value: 'confirmed', label: 'Tasdiqlangan' },
+                                  { value: 'preparing', label: 'Pishirilmoqda' },
+                                  { value: 'ready', label: 'Tayyor' },
+                                ]}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {/* 3. COURIER QUEUE (Kuryer portali) */}
+          {/* 3. COURIER QUEUE & HISTORY (Kuryer portali) */}
           {activeTab === 'courier' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
+              {/* Header & Sub-Tabs */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold">Kuryer Yetkazib Berish Portali</h3>
                   <p className="text-xs text-[#6B7280]">
-                    Yetkazilishi kerak bo‘lgan buyurtmalar, mijoz bilan tezkor aloqa va xarita.
+                    Yetkazilishi kerak bo‘lgan buyurtmalar, xaritalar va yetkazilganlar tarixi.
                   </p>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-blue-50 text-[#2563EB] text-xs font-bold">
-                  {courierOrders.length} ta yetkazishda
-                </span>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCourierSubTab('active')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      courierSubTab === 'active'
+                        ? 'bg-[#2563EB] text-white shadow-xs'
+                        : 'bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] text-[#4B5563] dark:text-[#9CA3AF]'
+                    }`}
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>Faol Yetkazishlar ({courierOrders.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setCourierSubTab('history')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      courierSubTab === 'history'
+                        ? 'bg-[#2563EB] text-white shadow-xs'
+                        : 'bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] text-[#4B5563] dark:text-[#9CA3AF]'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Yetkazilganlar Tarixi ({courierHistory.length})</span>
+                  </button>
+                </div>
               </div>
 
-              {courierOrders.length === 0 ? (
-                <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-16 text-center shadow-card">
-                  <Truck className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3 opacity-50" />
-                  <h4 className="text-base font-bold">Hozircha yetkaziladigan buyurtmalar yo‘q</h4>
-                  <p className="text-xs text-[#6B7280] mt-1">Yangi buyurtmalar tayyor bo‘lishi bilan bu yerda paydo bo‘ladi.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {courierOrders.map((ord) => (
-                    <div
-                      key={ord._id}
-                      className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-6 shadow-card flex flex-col justify-between"
-                    >
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-start pb-3 border-b border-[#E7E9ED] dark:border-[#272A30]">
-                          <div className="max-w-[200px]">
-                            <span className="font-mono text-xs font-extrabold text-[#2563EB]">#{ord.orderId}</span>
-                            <h4 className="text-base font-bold mt-0.5 truncate" title={ord.customer_name}>{ord.customer_name}</h4>
-                          </div>
-                          <span className="text-sm font-extrabold text-[#2563EB]">{formatPrice(ord.total)}</span>
-                        </div>
-
-                        {/* Customer Address with Maps Link */}
-                        <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] space-y-2">
-                          <div className="flex items-start gap-2 text-xs">
-                            <MapPin className="w-4 h-4 text-[#2563EB] shrink-0 mt-0.5" />
-                            <span className="font-semibold text-[#17181A] dark:text-[#F3F4F6]">
-                              {ord.customer_address}
-                            </span>
-                          </div>
-
-                          <div className="flex gap-2 pt-2 border-t border-[#E7E9ED] dark:border-[#2E3138]">
-                            <a
-                              href={`https://yandex.uz/maps/?text=${encodeURIComponent(ord.customer_address)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex-1 py-1.5 px-2.5 rounded-lg bg-amber-500 text-white text-[11px] font-bold text-center flex items-center justify-center gap-1"
-                            >
-                              <ExternalLink className="w-3 h-3" /> Yandex Xarita
-                            </a>
-                            <a
-                              href={`https://maps.google.com/?q=${encodeURIComponent(ord.customer_address)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex-1 py-1.5 px-2.5 rounded-lg bg-blue-600 text-white text-[11px] font-bold text-center flex items-center justify-center gap-1"
-                            >
-                              <ExternalLink className="w-3 h-3" /> Google Maps
-                            </a>
-                          </div>
-                        </div>
-
-                        {/* Quick Call Button */}
-                        <a
-                          href={`tel:${(ord.customer_phone || '').replace(/[^\d+]/g, '')}`}
-                          className="w-full py-2 px-3 rounded-xl border border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-2"
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                          <span>Qo‘ng‘iroq qilish: {ord.customer_phone}</span>
-                        </a>
-                      </div>
-
-                      {/* Courier Action Buttons: Take order when ready, confirm when delivering */}
-                      <div className="pt-4 mt-4 border-t border-[#E7E9ED] dark:border-[#272A30]">
-                        {ord.status === 'ready' ? (
-                          <button
-                            onClick={() => handleCourierTake(ord.orderId)}
-                            className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
-                          >
-                            <Truck className="w-4 h-4" />
-                            <span>🛵 Yo‘lga chiqdim (Yetkazishni boshlash)</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleCourierDeliver(ord.orderId)}
-                            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span>🎉 Yetkazildi deb tasdiqlash</span>
-                          </button>
-                        )}
-                      </div>
+              {/* Sub-Tab 1: Active Courier Orders */}
+              {courierSubTab === 'active' && (
+                <>
+                  {courierOrders.length === 0 ? (
+                    <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-16 text-center shadow-card">
+                      <Truck className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3 opacity-50" />
+                      <h4 className="text-base font-bold">Hozircha yetkaziladigan buyurtmalar yo‘q</h4>
+                      <p className="text-xs text-[#6B7280] mt-1">Oshxona yangi tortlarni tayyorlashi bilan bu yerda paydo bo‘ladi.</p>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {courierOrders.map((ord) => (
+                        <div
+                          key={ord._id}
+                          className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-6 shadow-card flex flex-col justify-between card-hover-lift"
+                        >
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-start pb-3 border-b border-[#E7E9ED] dark:border-[#272A30]">
+                              <div className="max-w-[200px]">
+                                <span className="font-mono text-xs font-extrabold text-[#2563EB]">#{ord.orderId}</span>
+                                <h4 className="text-base font-bold mt-0.5 truncate" title={ord.customer_name}>{ord.customer_name}</h4>
+                              </div>
+                              <span className="text-sm font-extrabold text-[#2563EB]">{formatPrice(ord.total)}</span>
+                            </div>
+
+                            {/* Customer Address with Maps Link */}
+                            <div className="p-3.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1F2227] space-y-2">
+                              <div className="flex items-start gap-2 text-xs">
+                                <MapPin className="w-4 h-4 text-[#2563EB] shrink-0 mt-0.5" />
+                                <span className="font-semibold text-[#17181A] dark:text-[#F3F4F6]">
+                                  {ord.customer_address}
+                                </span>
+                              </div>
+
+                              <div className="flex gap-2 pt-2 border-t border-[#E7E9ED] dark:border-[#2E3138]">
+                                <a
+                                  href={`https://yandex.uz/maps/?text=${encodeURIComponent(ord.customer_address)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex-1 py-1.5 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold text-center flex items-center justify-center gap-1 transition-colors"
+                                >
+                                  <ExternalLink className="w-3 h-3" /> Yandex Xarita
+                                </a>
+                                <a
+                                  href={`https://maps.google.com/?q=${encodeURIComponent(ord.customer_address)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex-1 py-1.5 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold text-center flex items-center justify-center gap-1 transition-colors"
+                                >
+                                  <ExternalLink className="w-3 h-3" /> Google Maps
+                                </a>
+                              </div>
+                            </div>
+
+                            {/* Quick Call Button */}
+                            <a
+                              href={`tel:${(ord.customer_phone || '').replace(/[^\d+]/g, '')}`}
+                              className="w-full py-2 px-3 rounded-xl border border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                            >
+                              <Phone className="w-3.5 h-3.5" />
+                              <span>Qo‘ng‘iroq qilish: {ord.customer_phone}</span>
+                            </a>
+                          </div>
+
+                          {/* Courier Action Buttons: Take order when ready, confirm when delivering */}
+                          <div className="pt-4 mt-4 border-t border-[#E7E9ED] dark:border-[#272A30] space-y-2">
+                            {ord.status === 'ready' ? (
+                              <button
+                                onClick={() => handleCourierStatusChange(ord.orderId, 'delivering')}
+                                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                              >
+                                <Truck className="w-4 h-4" />
+                                <span>🛵 Yo‘lga chiqdim (Yetkazishni boshlash)</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleCourierStatusChange(ord.orderId, 'delivered')}
+                                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>🎉 Yetkazildi deb tasdiqlash</span>
+                              </button>
+                            )}
+
+                            {/* Status Change Selector */}
+                            <div className="flex items-center gap-2 pt-1">
+                              <span className="text-[10px] text-[#6B7280] font-semibold whitespace-nowrap">Holatni o‘zgartirish:</span>
+                              <div className="flex-1">
+                                <CustomSelect
+                                  value={ord.status}
+                                  onChange={(val) => handleCourierStatusChange(ord.orderId, val)}
+                                  size="sm"
+                                  options={[
+                                    { value: 'ready', label: 'Tayyor (Kuryer kutmoqda)' },
+                                    { value: 'delivering', label: 'Yetkazilmoqda (Yo‘lda)' },
+                                    { value: 'delivered', label: 'Yetkazildi' },
+                                  ]}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Sub-Tab 2: Courier History */}
+              {courierSubTab === 'history' && (
+                <div className="space-y-4">
+                  {courierHistory.length === 0 ? (
+                    <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-16 text-center shadow-card">
+                      <CheckCircle2 className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3 opacity-50" />
+                      <h4 className="text-base font-bold">Yetkazish tarixi bo‘sh</h4>
+                      <p className="text-xs text-[#6B7280] mt-1">Muvaffaqiyatli yetkazilgan buyurtmalar ro‘yxati bu yerda saqlanadi.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {courierHistory.map((ord) => (
+                        <div
+                          key={ord._id}
+                          className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-5 shadow-card space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="font-mono text-xs font-bold text-[#2563EB]">#{ord.orderId}</span>
+                              <h4 className="text-xs font-bold mt-0.5">{ord.customer_name}</h4>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-black text-sm text-[#111827] dark:text-[#F3F4F6] block">
+                                {formatPrice(ord.total)}
+                              </span>
+                              <Badge variant="success" dot size="sm">Yetkazilgan</Badge>
+                            </div>
+                          </div>
+
+                          <div className="p-2.5 rounded-xl bg-[#F7F8FA] dark:bg-[#1E2026] text-xs space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px] text-[#6B7280]">
+                              <span>Telefon:</span>
+                              <a href={`tel:${(ord.customer_phone || '').replace(/[^\d+]/g, '')}`} className="font-bold text-[#2563EB] hover:underline">
+                                {ord.customer_phone}
+                              </a>
+                            </div>
+                            <div className="flex items-start gap-1 text-[11px] text-[#6B7280]">
+                              <MapPin className="w-3 h-3 text-[#2563EB] shrink-0 mt-0.5" />
+                              <span className="line-clamp-2">{ord.customer_address}</span>
+                            </div>
+                          </div>
+
+                          {/* Status Revert / Change option if needed */}
+                          <div className="flex items-center justify-between pt-2 border-t border-[#E7E9ED] dark:border-[#272A30] text-xs">
+                            <span className="text-[10px] text-[#6B7280]">Holatni qayta sozlash:</span>
+                            <div className="w-44">
+                              <CustomSelect
+                                value={ord.status}
+                                onChange={(val) => handleCourierStatusChange(ord.orderId, val)}
+                                size="sm"
+                                options={[
+                                  { value: 'ready', label: 'Tayyor (Kuryer kutmoqda)' },
+                                  { value: 'delivering', label: 'Yetkazilmoqda (Yo‘lda)' },
+                                  { value: 'delivered', label: 'Yetkazildi' },
+                                ]}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

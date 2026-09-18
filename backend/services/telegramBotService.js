@@ -5,8 +5,11 @@ import Order from '../models/Order.js';
 import Cake from '../models/Cake.js';
 import Category from '../models/Category.js';
 import Settings from '../models/Settings.js';
+import WalletTransaction from '../models/WalletTransaction.js';
+import Notification from '../models/Notification.js';
 import { socketService } from './socketService.js';
 import { aiService } from './aiService.js';
+import { emailService } from './emailService.js';
 
 // Safe helper to find order by orderId or ObjectId
 const findOrderSafely = (id) => {
@@ -677,7 +680,12 @@ class TelegramBotService {
           return ctx.answerCbQuery(`Buyurtma allaqachon "${STATUS_LABELS[newStatus] || newStatus}" holatida.`);
         }
 
+        const prevStatus = order.status;
         order.status = newStatus;
+        if (newStatus === 'delivered') {
+          order.payment_status = 'paid';
+        }
+
         if (!Array.isArray(order.status_history)) {
           order.status_history = [];
         }
@@ -688,6 +696,47 @@ class TelegramBotService {
         });
 
         await order.save();
+
+        // If delivered, handle customer cashback & review invitation
+        if (newStatus === 'delivered' && prevStatus !== 'delivered' && order.customer) {
+          try {
+            const customer = await User.findById(order.customer);
+            const settings = (await Settings.findOne()) || { cashbackPercent: 3 };
+            const cashbackPercent = settings.cashbackPercent || 3;
+            const cashbackAmount = Math.round((order.subtotal * cashbackPercent) / 100);
+
+            if (customer && cashbackAmount > 0) {
+              customer.walletBalance = (customer.walletBalance || 0) + cashbackAmount;
+              await customer.save();
+
+              await WalletTransaction.create({
+                user: customer._id,
+                amount: cashbackAmount,
+                type: 'cashback',
+                reason: `Buyurtma #${order.orderId} uchun ${cashbackPercent}% keshbek`,
+                balanceAfter: customer.walletBalance,
+                createdBy: customer._id,
+              });
+            }
+
+            const notif = await Notification.create({
+              recipient: customer ? customer._id : order.customer,
+              recipientRole: 'customer',
+              type: 'review_prompt',
+              title: '⭐️ Buyurtmangiz yetkazildi! Taassurotingizni baholang',
+              message: `#${order.orderId} buyurtmangiz muvaffaqiyatli yetkazildi. Mahsulot va xizmatimizni baholab fikr qoldiring!`,
+              link: `/profile?tab=reviews&orderId=${order.orderId}`,
+            });
+            socketService.emitNotification(order.customer.toString(), notif);
+            socketService.emitOrderDelivered(order, notif);
+          } catch (e) {
+            console.error('Bot delivery cashback error:', e);
+          }
+        }
+
+        if (newStatus === 'ready' && prevStatus !== 'ready') {
+          this.notifyCourierOrderReady(order);
+        }
 
         // Notify real-time Web App
         socketService.emitOrderStatus(order);

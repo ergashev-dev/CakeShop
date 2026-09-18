@@ -31,6 +31,7 @@ import { useWishlist } from '../../context/WishlistContext';
 import LanguageSelector from './LanguageSelector';
 import NotificationCenter from '../notifications/NotificationCenter';
 import InstallAppModal from '../common/InstallAppModal';
+import telegramWebApp from '../../services/telegramWebApp';
 
 const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
   const { t } = useTranslation();
@@ -44,9 +45,11 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const [isTg, setIsTg] = useState(false);
   const userMenuRef = useRef(null);
 
   useEffect(() => {
+    setIsTg(telegramWebApp.isInsideTelegram());
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
@@ -88,20 +91,23 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
         className={`sticky top-0 z-40 bg-white/95 dark:bg-[#16181D]/95 backdrop-blur-md border-b border-[#E5E7EB] dark:border-[#26282E] transition-shadow duration-200 ${
           isScrolled ? 'shadow-subtle' : ''
         }`}
+        style={{
+          paddingTop: 'max(var(--tg-content-safe-area-top, 0px), var(--tg-safe-area-top, 0px), env(safe-area-inset-top, 0px))',
+        }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
             {/* LEFT: Logo & Desktop Navigation */}
-            <div className="flex items-center gap-8">
-              <Link to="/" className="flex items-center gap-2.5 select-none group">
-                <div className="w-9 h-9 rounded-xl bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 text-[#2563EB] flex items-center justify-center border border-[#BFDBFE]/60 dark:border-[#1E3A8A] transition-transform group-hover:scale-105">
-                  <Cake className="w-5 h-5 stroke-[2]" />
+            <div className="flex items-center gap-4 sm:gap-8">
+              <Link to="/" className="flex items-center gap-2 select-none group">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 text-[#2563EB] flex items-center justify-center border border-[#BFDBFE]/60 dark:border-[#1E3A8A] transition-transform group-hover:scale-105 shrink-0">
+                  <Cake className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2]" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-bold text-base text-[#111827] dark:text-[#F3F4F6] leading-tight tracking-tight">
+                  <span className="font-bold text-sm sm:text-base text-[#111827] dark:text-[#F3F4F6] leading-tight tracking-tight">
                     Bol Tortlari
                   </span>
-                  <span className="text-[10px] font-medium text-[#6B7280] dark:text-[#9CA3AF]">
+                  <span className="hidden xs:inline text-[9px] sm:text-[10px] font-medium text-[#6B7280] dark:text-[#9CA3AF] truncate max-w-[120px] sm:max-w-none">
                     {t('brand.tagline', 'Qandolatchilik ustaxonasi')}
                   </span>
                 </div>
@@ -458,55 +464,71 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
       </header>
 
       {/* MOBILE BOTTOM NAVIGATION BAR */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#16181D]/95 backdrop-blur-md border-t border-[#E5E7EB] dark:border-[#26282E] px-2 py-1.5 flex items-center justify-around shadow-card safe-area-pb">
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#16181D]/95 backdrop-blur-md border-t border-[#E5E7EB] dark:border-[#26282E] px-2 flex items-center justify-around shadow-card"
+        style={{
+          paddingTop: '8px',
+          paddingBottom: 'max(var(--tg-content-safe-area-bottom, 0px), var(--tg-safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px), 10px)',
+        }}
+      >
         <Link
           to="/"
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-[10px] font-medium transition-colors ${
+          onClick={() => isTg && telegramWebApp.haptic.selection()}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl text-[10px] font-semibold transition-all ${
             location.pathname === '/'
-              ? 'text-[#2563EB] font-bold'
-              : 'text-[#6B7280] dark:text-[#9CA3AF]'
+              ? 'text-[#2563EB] dark:text-[#93C5FD] font-bold scale-105'
+              : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-[#F3F4F6]'
           }`}
         >
-          <Home className="w-4 h-4" />
+          <div className={`p-1 rounded-lg ${location.pathname === '/' ? 'bg-[#EFF6FF] dark:bg-[#1E3A8A]/40' : ''}`}>
+            <Home className="w-4 h-4" />
+          </div>
           <span>{t('nav.home', 'Bosh sahifa')}</span>
         </Link>
 
         <Link
           to="/cakes"
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-[10px] font-medium transition-colors ${
+          onClick={() => isTg && telegramWebApp.haptic.selection()}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl text-[10px] font-semibold transition-all ${
             location.pathname === '/cakes' && !location.search.includes('sale=true')
-              ? 'text-[#2563EB] font-bold'
-              : 'text-[#6B7280] dark:text-[#9CA3AF]'
+              ? 'text-[#2563EB] dark:text-[#93C5FD] font-bold scale-105'
+              : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-[#F3F4F6]'
           }`}
         >
-          <Cake className="w-4 h-4" />
+          <div className={`p-1 rounded-lg ${location.pathname === '/cakes' && !location.search.includes('sale=true') ? 'bg-[#EFF6FF] dark:bg-[#1E3A8A]/40' : ''}`}>
+            <Cake className="w-4 h-4" />
+          </div>
           <span>{t('nav.cakes', 'Katalog')}</span>
         </Link>
 
         <Link
           to="/custom-cake"
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-[10px] font-medium transition-colors ${
+          onClick={() => isTg && telegramWebApp.haptic.selection()}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl text-[10px] font-semibold transition-all ${
             location.pathname === '/custom-cake'
-              ? 'text-[#2563EB] font-bold'
-              : 'text-[#6B7280] dark:text-[#9CA3AF]'
+              ? 'text-[#2563EB] dark:text-[#93C5FD] font-bold scale-105'
+              : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-[#F3F4F6]'
           }`}
         >
-          <Sparkles className="w-4 h-4" />
-          <span>{t('nav.custom_cake', 'Maxsus tort')}</span>
+          <div className={`p-1 rounded-lg ${location.pathname === '/custom-cake' ? 'bg-[#EFF6FF] dark:bg-[#1E3A8A]/40' : ''}`}>
+            <Sparkles className="w-4 h-4 text-amber-500" />
+          </div>
+          <span>{t('nav.custom_cake', 'Maxsus')}</span>
         </Link>
 
         <Link
           to="/favorites"
-          className={`relative flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-[10px] font-medium transition-colors ${
+          onClick={() => isTg && telegramWebApp.haptic.selection()}
+          className={`relative flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl text-[10px] font-semibold transition-all ${
             location.pathname === '/favorites'
-              ? 'text-rose-500 font-bold'
-              : 'text-[#6B7280] dark:text-[#9CA3AF]'
+              ? 'text-rose-500 font-bold scale-105'
+              : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-[#F3F4F6]'
           }`}
         >
-          <div className="relative">
+          <div className={`relative p-1 rounded-lg ${location.pathname === '/favorites' ? 'bg-rose-50 dark:bg-rose-950/40' : ''}`}>
             <Heart className="w-4 h-4" />
             {wishlistCount > 0 && (
-              <span className="absolute -top-1 -right-2 min-w-[14px] h-3.5 px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-extrabold flex items-center justify-center shadow-xs">
                 {wishlistCount}
               </span>
             )}
@@ -515,13 +537,16 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
         </Link>
 
         <button
-          onClick={() => setIsCartOpen(true)}
-          className="relative flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-[10px] font-medium text-[#6B7280] dark:text-[#9CA3AF] cursor-pointer"
+          onClick={() => {
+            if (isTg) telegramWebApp.haptic.selection();
+            setIsCartOpen(true);
+          }}
+          className="relative flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl text-[10px] font-semibold text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-[#F3F4F6] cursor-pointer transition-all active:scale-95"
         >
-          <div className="relative">
-            <ShoppingBag className="w-4 h-4" />
+          <div className="relative p-1 rounded-lg">
+            <ShoppingBag className="w-4 h-4 text-[#2563EB]" />
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-2 min-w-[14px] h-3.5 px-0.5 rounded-full bg-[#2563EB] text-white text-[9px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-[#2563EB] text-white text-[9px] font-extrabold flex items-center justify-center shadow-xs">
                 {cartCount}
               </span>
             )}
