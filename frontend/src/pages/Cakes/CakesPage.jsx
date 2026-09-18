@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, X, SlidersHorizontal, Cake as CakeIcon, Percent } from 'lucide-react';
 import { cakeApi, categoryApi } from '../../services/api';
 import CakeCard from '../../components/cake/CakeCard';
 import CustomSelect from '../../components/common/CustomSelect';
+import { CakeCardSkeleton, CategorySkeleton } from '../../components/states/LoadingState';
+import EmptyState from '../../components/states/EmptyState';
+import ErrorState from '../../components/states/ErrorState';
 
 const CakesPage = () => {
   const { t, i18n } = useTranslation();
@@ -13,6 +16,7 @@ const CakesPage = () => {
   const [cakes, setCakes] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
@@ -36,24 +40,27 @@ const CakesPage = () => {
     if (catParam) setSelectedCategory(catParam);
   }, [searchParams]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [cakesRes, catRes] = await Promise.all([
-          cakeApi.getAll(),
-          categoryApi.getAll(),
-        ]);
-        setCakes(cakesRes.data?.cakes || []);
-        setCategories(catRes.data?.categories || []);
-      } catch (err) {
-        console.error('Error fetching catalog data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setFetchError(null);
+      const [cakesRes, catRes] = await Promise.all([
+        cakeApi.getAll(),
+        categoryApi.getAll(),
+      ]);
+      setCakes(cakesRes.data?.cakes || []);
+      setCategories(catRes.data?.categories || []);
+    } catch (err) {
+      console.error('Error fetching catalog data:', err);
+      setFetchError(err.response?.status || 500);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const filteredAndSortedCakes = useMemo(() => {
     return cakes.filter((cake) => {
@@ -118,6 +125,13 @@ const CakesPage = () => {
     setSearchParams(searchParams);
   };
 
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('all');
+    setSaleOnly(false);
+    setSearchParams({});
+  };
+
   return (
     <div className="py-8 sm:py-12 min-h-screen bg-[#FBFBFC] dark:bg-[#0F1012] text-[#111827] dark:text-[#F3F4F6]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -138,68 +152,73 @@ const CakesPage = () => {
         {/* Filter Controls Bar */}
         <div className="bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl p-4 sm:p-5 shadow-subtle mb-8 flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
           
-          {/* Search Input */}
-          <div className="relative w-full lg:w-80 shrink-0">
-            <Search className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-1/2 -translate-y-1/2" />
+          {/* Search Input Bar */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder={t('catalog.search_placeholder', 'Tort nomi bo‘yicha qidirish...')}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-10 pr-9 py-2.5 bg-[#FBFBFC] dark:bg-[#1F2228] border border-[#E5E7EB] dark:border-[#26282E] rounded-xl text-xs text-[#111827] dark:text-[#F3F4F6] placeholder-[#9CA3AF] outline-none focus:border-[#2563EB] transition-colors"
+              placeholder={t('catalog.search_placeholder', 'Katalogdan tort qidirish...')}
+              className="w-full pl-10 pr-10 py-2.5 bg-[#F9FAFB] dark:bg-[#1F2228] border border-[#E5E7EB] dark:border-[#26282E] rounded-xl text-xs sm:text-sm text-[#111827] dark:text-[#F3F4F6] placeholder-[#9CA3AF] outline-none focus:border-[#2563EB] transition-colors"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#111827] dark:hover:text-[#F3F4F6] cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {/* Category Pills & Sale Filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full pb-1 lg:pb-0 no-scrollbar">
-            <button
-              onClick={() => handleCategorySelect('all')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                selectedCategory === 'all' && !saleOnly
-                  ? 'bg-[#2563EB] text-white shadow-subtle'
-                  : 'bg-[#F3F4F6] dark:bg-[#1F2228] text-[#4B5563] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-[#F3F4F6]'
-              }`}
-            >
-              {t('catalog.all_categories', 'Barchasi')} ({cakes.length})
-            </button>
+          {/* Category Pills List */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+            {loading ? (
+              <CategorySkeleton count={5} />
+            ) : (
+              <>
+                <button
+                  onClick={() => handleCategorySelect('all')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                    selectedCategory === 'all' && !saleOnly
+                      ? 'bg-[#2563EB] text-white shadow-subtle'
+                      : 'bg-[#F3F4F6] dark:bg-[#1F2228] text-[#4B5563] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-[#F3F4F6]'
+                  }`}
+                >
+                  {t('catalog.all_cakes', 'Barcha tortlar')}
+                </button>
 
-            {/* Sale filter pill */}
-            <button
-              onClick={handleSaleToggle}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
-                saleOnly
-                  ? 'bg-rose-600 text-white shadow-subtle'
-                  : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100'
-              }`}
-            >
-              <Percent className="w-3 h-3" />
-              <span>{t('cake.discount', 'Aksiyalar')}</span>
-            </button>
+                <button
+                  onClick={handleSaleToggle}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    saleOnly
+                      ? 'bg-rose-600 text-white shadow-subtle'
+                      : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100'
+                  }`}
+                >
+                  <Percent className="w-3 h-3" />
+                  <span>{t('cake.discount', 'Aksiyalar')}</span>
+                </button>
 
-            {categories.map((cat) => (
-              <button
-                key={cat._id || cat.slug}
-                onClick={() => handleCategorySelect(cat.slug)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                  selectedCategory === cat.slug && !saleOnly
-                    ? 'bg-[#2563EB] text-white shadow-subtle'
-                    : 'bg-[#F3F4F6] dark:bg-[#1F2228] text-[#4B5563] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-[#F3F4F6]'
-                }`}
-              >
-                {getCategoryName(cat)}
-              </button>
-            ))}
+                {categories.map((cat) => (
+                  <button
+                    key={cat._id || cat.slug}
+                    onClick={() => handleCategorySelect(cat.slug)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                      selectedCategory === cat.slug && !saleOnly
+                        ? 'bg-[#2563EB] text-white shadow-subtle'
+                        : 'bg-[#F3F4F6] dark:bg-[#1F2228] text-[#4B5563] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-[#F3F4F6]'
+                    }`}
+                  >
+                    {getCategoryName(cat)}
+                  </button>
+                ))}
+              </>
+            )}
           </div>
 
           {/* Sort Selector */}
@@ -222,33 +241,18 @@ const CakesPage = () => {
         {/* 4-Column Responsive Grid */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div
-                key={i}
-                className="bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl h-84 animate-pulse"
-              />
-            ))}
+            <CakeCardSkeleton count={8} />
+          </div>
+        ) : fetchError ? (
+          <div className="bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl p-6 shadow-card">
+            <ErrorState status={fetchError} onRetry={fetchData} />
           </div>
         ) : paginatedCakes.length === 0 ? (
-          <div className="bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl p-16 text-center shadow-card">
-            <CakeIcon className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3 opacity-40" />
-            <h3 className="text-base font-bold text-[#111827] dark:text-[#F3F4F6]">
-              {t('catalog.no_cakes', 'Mos keluvchi tortlar topilmadi')}
-            </h3>
-            <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-1 max-w-sm mx-auto mb-4">
-              {t('common.no_data', 'Qidiruv so‘zini o‘zgartirib ko‘ring yoki barcha tortlarni ko‘rish uchun filtrlarni tozalang.')}
-            </p>
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedCategory('all');
-                setSaleOnly(false);
-                setSearchParams({});
-              }}
-              className="px-4 py-2 bg-[#2563EB] text-white text-xs font-semibold rounded-xl hover:bg-[#1D4ED8] transition-colors cursor-pointer"
-            >
-              {t('catalog.reset_filter', 'Filtrlarni tozalash')}
-            </button>
+          <div className="bg-white dark:bg-[#16181D] border border-[#E5E7EB] dark:border-[#26282E] rounded-2xl p-8 text-center shadow-card max-w-lg mx-auto">
+            <EmptyState
+              type="products"
+              onAction={handleResetFilters}
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -259,7 +263,7 @@ const CakesPage = () => {
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {!loading && !fetchError && totalPages > 1 && (
           <div className="mt-12 flex justify-center items-center gap-2">
             {[...Array(totalPages)].map((_, i) => (
               <button

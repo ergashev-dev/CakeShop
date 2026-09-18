@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, MapPin, Navigation, Check, Loader2, AlertCircle } from 'lucide-react';
 import Button from '../common/Button';
+import PermissionModal from '../states/PermissionModal';
 
 // Dynamically load Leaflet assets if not present
 const loadLeafletAssets = () => {
@@ -50,6 +51,8 @@ const LocationPickerModal = ({ isOpen, onClose, onSelectLocation, initialAddress
   const [currentCoords, setCurrentCoords] = useState({ lat: 41.2995, lng: 69.2401 }); // Default: Tashkent center
   const [detectedAddress, setDetectedAddress] = useState(initialAddress || '');
   const [gpsError, setGpsError] = useState('');
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isLocationDenied, setIsLocationDenied] = useState(false);
 
   // Reverse geocode lat/lng to readable address via Nominatim
   const reverseGeocode = async (lat, lon) => {
@@ -194,13 +197,17 @@ const LocationPickerModal = ({ isOpen, onClose, onSelectLocation, initialAddress
     };
   }, [isOpen]);
 
-  // Handle GPS location detection
+  // Prompt custom pre-explanation modal before native browser prompt
   const handleDetectGPS = () => {
     if (!('geolocation' in navigator)) {
       setGpsError('Qurilmangizda geolokatsiya qo‘llab-quvvatlanmaydi.');
       return;
     }
+    setIsLocationDenied(false);
+    setIsLocationModalOpen(true);
+  };
 
+  const executeDetectGPS = () => {
     setDetectingGps(true);
     setGpsError('');
 
@@ -216,13 +223,16 @@ const LocationPickerModal = ({ isOpen, onClose, onSelectLocation, initialAddress
 
         reverseGeocode(latitude, longitude);
         setDetectingGps(false);
+        setIsLocationModalOpen(false);
       },
       (err) => {
         console.warn('Geolocation error:', err);
         setDetectingGps(false);
         if (err.code === 1) {
-          setGpsError('Geolokatsiyaga ruxsat berilmadi. Iltimos brauzer sozlamalarida ruxsat bering.');
+          setIsLocationDenied(true);
+          setGpsError('Geolokatsiyaga ruxsat berilmadi. Brauzer sozlamalaridan joylashuvga ruxsat bering yoki xaritadan o‘zingiz belgilang.');
         } else {
+          setIsLocationModalOpen(false);
           setGpsError('Joylashuvingizni aniqlab bo‘lmadi. Xaritadan o‘zingiz belgilang.');
         }
       },
@@ -344,6 +354,15 @@ const LocationPickerModal = ({ isOpen, onClose, onSelectLocation, initialAddress
         </div>
 
       </div>
+
+      {/* Geolocation Permission Modal */}
+      <PermissionModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        onAction={executeDetectGPS}
+        type="location"
+        isDenied={isLocationDenied}
+      />
     </div>
   );
 };

@@ -312,5 +312,127 @@
     "bug_title_label": "Issue Subject",
     "bug_desc_label": "Detailed Problem Description",
     "bug_submit_btn": "Submit Report"
+  },
+  "ux": {
+    "not_found": {
+      "code": "404",
+      "title": "Page Not Found",
+      "desc": "The page you are looking for does not exist or has been moved.",
+      "btn_home": "Home Page",
+      "btn_back": "Go Back"
+    },
+    "offline": {
+      "title": "No Internet Connection",
+      "desc": "Please check your connection and try again.",
+      "btn_retry": "Retry",
+      "restored": "Internet connection restored"
+    },
+    "errors": {
+      "general_title": "Unable to Load Data",
+      "general_desc": "An error occurred while connecting to the server.",
+      "btn_retry": "Try Again",
+      "status_401_title": "Authentication Required",
+      "status_401_desc": "Please sign in to your account to continue.",
+      "status_401_btn": "Sign In",
+      "status_403_title": "Access Denied",
+      "status_403_desc": "You do not have permission to perform this action.",
+      "status_404_title": "Resource Not Found",
+      "status_404_desc": "The requested data was not found on the server.",
+      "status_408_title": "Request Timeout",
+      "status_408_desc": "The server took too long to respond. Please try again.",
+      "status_429_title": "Too Many Requests",
+      "status_429_desc": "Please wait a moment before trying again.",
+      "status_500_title": "Server Error",
+      "status_500_desc": "An unexpected error occurred on the server.",
+      "status_502_title": "Server Unavailable",
+      "status_502_desc": "The server is temporarily undergoing maintenance."
+    },
+    "empty": {
+      "search_title": "No Results Found",
+      "search_desc": "Try searching with different keywords.",
+      "search_btn": "Clear Search",
+      "cart_title": "Your Cart is Empty",
+      "cart_desc": "Browse our signature cakes and add your favorites to cart.",
+      "cart_btn": "Browse Cakes",
+      "orders_title": "No Orders Yet",
+      "orders_desc": "Place your first delightful cake order today.",
+      "orders_btn": "Order a Cake",
+      "favorites_title": "No Favorites Yet",
+      "favorites_desc": "Save the cakes you love by tapping the heart icon.",
+      "favorites_btn": "Browse Cakes",
+      "products_title": "No Products Available",
+      "products_desc": "New artisanal creations will be added soon.",
+      "products_btn": "All Categories"
+    },
+    "permissions": {
+      "location": {
+        "title": "Location Permission",
+        "desc": "We use your location to pinpoint your delivery address on the map.",
+        "btn_grant": "Enable Location",
+        "btn_later": "Not Now",
+        "denied_title": "Location Permission Denied",
+        "denied_desc": "Please enable location permissions in your browser or device settings.",
+        "not_found_title": "Could Not Determine Location",
+        "not_found_desc": "Please check your GPS signal and try again."
+      },
+      "camera": {
+        "title": "Camera Access Needed",
+        "desc": "Grant camera access to take cake photos or scan QR codes.",
+        "btn_grant": "Allow Camera",
+        "btn_cancel": "Cancel",
+        "denied_title": "Camera Access Blocked",
+        "denied_desc": "Enable camera access in your browser settings."
+      },
+      "microphone": {
+        "title": "Microphone Access Needed",
+        "desc": "Grant microphone access to search for cakes with your voice.",
+        "btn_grant": "Allow Microphone",
+        "btn_cancel": "Cancel",
+        "denied_title": "Microphone Access Blocked",
+        "denied_desc": "Enable microphone access in your browser settings."
+      },
+      "notification": {
+        "title": "Enable Notifications",
+        "desc": "Would you like to receive order tracking updates and special cake offers?",
+        "btn_grant": "Enable",
+        "btn_later": "Later"
+      }
+    },
+    "file_upload": {
+      "too_large": "File Too Large",
+      "too_large_desc": "File size must not exceed 5MB.",
+      "invalid_type": "Unsupported File Format",
+      "invalid_type_desc": "Only JPG, PNG, and WEBP images are accepted.",
+      "failed": "Failed to Upload File",
+      "btn_reselect": "Choose Again"
+    },
+    "session": {
+      "expired_title": "Session Expired",
+      "expired_desc": "Please sign in again to continue.",
+      "btn_login": "Sign In"
+    },
+    "validation": {
+      "required": "This field is required",
+      "invalid_email": "Invalid email address",
+      "password_min": "Password must be at least 8 characters",
+      "phone_invalid": "Please enter a complete phone number (+998...)"
+    },
+    "timeout": {
+      "title": "Connection Timed Out",
+      "desc": "Your internet connection may be slow or unstable.",
+      "btn_retry": "Retry"
+    },
+    "error_boundary": {
+      "title": "Something Went Wrong",
+      "desc": "Please reload the page.",
+      "btn_reload": "Reload Page"
+    },
+    "toasts": {
+      "saved": "Saved",
+      "cart_added": "Product added to cart",
+      "order_created": "Order created successfully",
+      "profile_updated": "Profile updated",
+      "action_failed": "Action could not be completed"
+    }
   }
 }

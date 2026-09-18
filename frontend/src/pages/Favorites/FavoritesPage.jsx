@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Heart, ShoppingBag, Trash2, ArrowRight, Sparkles, Star, Cake } from 'lucide-react';
 import { useWishlist } from '../../context/WishlistContext';
@@ -7,9 +7,12 @@ import { useCart } from '../../context/CartContext';
 import { useToast } from '../../context/ToastContext';
 import { formatPrice } from '../../utils/formatters';
 import { DEFAULT_CAKE_IMAGE, handleImageError } from '../../utils/imageFallback';
+import EmptyState from '../../components/states/EmptyState';
+import { CakeCardSkeleton } from '../../components/states/LoadingState';
 
 const FavoritesPage = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { favorites, wishlistCount, toggleFavorite, loading } = useWishlist();
   const { addToCart, setIsCartOpen } = useCart();
   const { toast } = useToast();
@@ -59,29 +62,15 @@ const FavoritesPage = () => {
 
       {/* Loading State */}
       {loading ? (
-        <div className="py-20 text-center">
-          <div className="w-10 h-10 border-3 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-xs text-[#6B7280]">{t('common.loading', 'Yuklanmoqda...')}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <CakeCardSkeleton count={6} />
         </div>
       ) : favorites.length === 0 ? (
-        /* Empty State with Apple Bento Aesthetic */
-        <div className="bg-white/80 dark:bg-[#16181D]/80 backdrop-blur-md rounded-3xl border border-[#E7E9ED] dark:border-[#272A30] p-12 text-center max-w-lg mx-auto shadow-sm">
-          <div className="w-16 h-16 rounded-3xl bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center mx-auto mb-4 border border-rose-200 dark:border-rose-800/40">
-            <Heart className="w-8 h-8" />
-          </div>
-          <h3 className="text-lg font-bold text-[#17181A] dark:text-[#F3F4F6] mb-1">
-            {t('favorites.empty_title', 'Sevimlilar ro‘yxatingiz hozircha bo‘sh')}
-          </h3>
-          <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mb-6 max-w-xs mx-auto">
-            {t('favorites.empty_desc', 'Katalogimizdagi tortlarga yurakcha tugmasini bosib saqlang!')}
-          </p>
-          <Link
-            to="/cakes"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
-          >
-            <Cake className="w-4 h-4" />
-            <span>{t('cart.browse_cakes', 'Katalogga o‘tish')}</span>
-          </Link>
+        <div className="bg-white/80 dark:bg-[#16181D]/80 backdrop-blur-md rounded-3xl border border-[#E7E9ED] dark:border-[#272A30] p-6 text-center max-w-lg mx-auto shadow-sm">
+          <EmptyState
+            type="favorites"
+            onAction={() => navigate('/cakes')}
+          />
         </div>
       ) : (
         /* Bento Grid of Favorite Cakes */
@@ -148,19 +137,19 @@ const FavoritesPage = () => {
                   <div className="pt-3 border-t border-[#F0F2F5] dark:border-[#24272D] flex items-center justify-between gap-3">
                     <div>
                       <div className="text-[10px] text-[#6B7280] dark:text-[#9CA3AF] uppercase font-bold">
-                        {t('cake.price', 'Narxi')}:
+                        {t('common.price', 'Narxi')}
                       </div>
-                      <div className="text-base font-extrabold text-[#17181A] dark:text-[#F3F4F6]">
+                      <div className="text-sm font-bold text-[#17181A] dark:text-[#F3F4F6]">
                         {formatPrice(price)}
                       </div>
                     </div>
 
                     <button
                       onClick={() => handleAddToCart(cake)}
-                      className="px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-blue-500/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95"
                     >
                       <ShoppingBag className="w-3.5 h-3.5" />
-                      <span>{t('cake.add_to_cart', 'Savatga')}</span>
+                      <span>{t('catalog.add_to_cart', 'Savatga')}</span>
                     </button>
                   </div>
                 </div>

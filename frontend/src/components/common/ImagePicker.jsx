@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Image, Link, Check, Trash2, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Upload, Image, Link, Check, Trash2, RefreshCw, AlertTriangle, Camera } from 'lucide-react';
 import Button from './Button';
+import PermissionModal from '../states/PermissionModal';
+import { usePermission } from '../../hooks/usePermission';
 
 // Curated preset cake gallery photos
 const PRESET_CAKE_IMAGES = [
@@ -53,22 +56,37 @@ export default function ImagePicker({
   error = '',
   className = '',
 }) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('gallery'); // 'gallery' | 'upload' | 'url'
   const [isDragging, setIsDragging] = useState(false);
   const [isReading, setIsReading] = useState(false);
+  const [uploadError, setUploadError] = useState(null); // { title, desc }
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isCameraDenied, setIsCameraDenied] = useState(false);
+  const { requestCamera } = usePermission();
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   // Handle local file upload
   const handleFileSelect = (file) => {
     if (!file) return;
+    setUploadError(null);
+
+    // 1. Invalid Type Check
     if (!file.type.startsWith('image/')) {
-      alert('Iltimos, faqat rasm faylini tanlang (JPG, PNG, WEBP).');
+      setUploadError({
+        title: t('ux.file_upload.invalid_type', 'Bu fayl formatini qo‘llab-quvvatlamaymiz'),
+        desc: t('ux.file_upload.invalid_type_desc', 'Faqat JPG, PNG va WEBP rasmlari qabul qilinadi.'),
+      });
       return;
     }
 
-    // Limit size to 5MB for base64 storage
+    // 2. File Size Limit (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('Rasm hajmi 5 MB dan kichik bo‘lishi kerak.');
+      setUploadError({
+        title: t('ux.file_upload.too_large', 'Fayl hajmi juda katta'),
+        desc: t('ux.file_upload.too_large_desc', 'Fayl hajmi 5MB dan oshmasligi lozim.'),
+      });
       return;
     }
 
@@ -77,12 +95,35 @@ export default function ImagePicker({
     reader.onload = (e) => {
       onChange(e.target.result);
       setIsReading(false);
+      setUploadError(null);
     };
     reader.onerror = () => {
-      alert('Rasmni o‘qishda xatolik yuz berdi.');
+      setUploadError({
+        title: t('ux.file_upload.failed', 'Faylni yuklab bo‘lmadi'),
+        desc: t('ux.file_upload.too_large_desc', 'Faylni qayta tanlashga urinib ko‘ring.'),
+      });
       setIsReading(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleCameraClick = () => {
+    setIsCameraDenied(false);
+    setIsCameraModalOpen(true);
+  };
+
+  const handleCameraPermissionGranted = async () => {
+    try {
+      await requestCamera();
+      setIsCameraModalOpen(false);
+      if (cameraInputRef.current) {
+        cameraInputRef.current.click();
+      }
+    } catch (err) {
+      if (err.message === 'denied') {
+        setIsCameraDenied(true);
+      }
+    }
   };
 
   const handleDrop = (e) => {
@@ -95,8 +136,12 @@ export default function ImagePicker({
 
   const handleRemove = () => {
     onChange('');
+    setUploadError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = '';
     }
   };
 
@@ -119,6 +164,23 @@ export default function ImagePicker({
           )}
         </div>
       )}
+
+      {/* Hidden Inputs */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/png,image/jpeg,image/webp"
+        onChange={(e) => handleFileSelect(e.target.files?.[0])}
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={cameraInputRef}
+        accept="image/*"
+        capture="environment"
+        onChange={(e) => handleFileSelect(e.target.files?.[0])}
+        className="hidden"
+      />
 
       {/* Selected Image Preview */}
       {value ? (
@@ -172,48 +234,79 @@ export default function ImagePicker({
             <button
               type="button"
               onClick={() => setActiveTab('gallery')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'gallery'
                   ? 'bg-white dark:bg-[#16181D] text-[#2563EB] dark:text-[#60A5FA] shadow-sm'
                   : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827]'
               }`}
             >
               <Image className="w-3.5 h-3.5" />
-              Galereyadan tanlash
+              Galereya
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('upload')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'upload'
                   ? 'bg-white dark:bg-[#16181D] text-[#2563EB] dark:text-[#60A5FA] shadow-sm'
                   : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827]'
               }`}
             >
               <Upload className="w-3.5 h-3.5" />
-              Qurilmadan yuklash
+              Fayl
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCameraClick}
+              className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] hover:bg-white/60 dark:hover:bg-[#1E2026] transition-all"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              Kamera
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('url')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'url'
                   ? 'bg-white dark:bg-[#16181D] text-[#2563EB] dark:text-[#60A5FA] shadow-sm'
                   : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827]'
               }`}
             >
               <Link className="w-3.5 h-3.5" />
-              Havola (URL)
+              URL
             </button>
           </div>
+
+          {/* Upload Error Banner */}
+          {uploadError && (
+            <div className="mb-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <h5 className="text-xs font-semibold text-rose-800 dark:text-rose-300">
+                  {uploadError.title}
+                </h5>
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5">
+                  {uploadError.desc}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-white dark:bg-[#1E2026] text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-50 shrink-0 shadow-sm transition-colors"
+              >
+                {t('ux.file_upload.btn_reselect', 'Qayta tanlash')}
+              </button>
+            </div>
+          )}
 
           {/* TAB 1: PRESET GALLERY */}
           {activeTab === 'gallery' && (
             <div>
               <div className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF] mb-2 font-medium">
-                Katalogdan mos tort rasmini 1 marta bosib tanlang:
+                Katalogdan mos tort rasmini tanlang:
               </div>
               <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
                 {PRESET_CAKE_IMAGES.map((preset) => (
@@ -255,14 +348,7 @@ export default function ImagePicker({
                   : 'border-[#D1D5DB] dark:border-[#374151] hover:border-[#2563EB] bg-white dark:bg-[#1A1C22]'
               }`}
             >
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                onChange={(e) => handleFileSelect(e.target.files?.[0])}
-                className="hidden"
-              />
-              <Upload className="w-6 h-6 text-[#2563EB] dark:text-[#60A5FA] mx-auto mb-2 animate-bounce" />
+              <Upload className="w-6 h-6 text-[#2563EB] dark:text-[#60A5FA] mx-auto mb-2" />
               <div className="text-xs font-bold text-[#111827] dark:text-[#F3F4F6]">
                 {isReading ? 'Rasm yuklanmoqda...' : 'Rasmni tanlang yoki bu yerga tortib keling'}
               </div>
@@ -291,6 +377,15 @@ export default function ImagePicker({
       )}
 
       {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
+
+      {/* Camera Permission Modal */}
+      <PermissionModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onAction={handleCameraPermissionGranted}
+        type="camera"
+        isDenied={isCameraDenied}
+      />
     </div>
   );
 }

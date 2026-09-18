@@ -26,6 +26,7 @@ import { formatPrice } from '../../utils/formatters';
 import { handleImageError, DEFAULT_CAKE_IMAGE } from '../../utils/imageFallback';
 import PaymentModal from '../payment/PaymentModal';
 import LocationPickerModal from '../map/LocationPickerModal';
+import EmptyState from '../states/EmptyState';
 
 const CartDrawer = ({ onAuthRequired }) => {
   const { t } = useTranslation();
@@ -300,22 +301,14 @@ const CartDrawer = ({ onAuthRequired }) => {
             <>
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 divide-y divide-[#F3F4F6] dark:divide-[#24272D]">
                 {cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-6">
-                    <div className="w-14 h-14 rounded-2xl bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 text-[#2563EB] flex items-center justify-center mb-3">
-                      <ShoppingBag className="w-7 h-7 stroke-[1.5]" />
-                    </div>
-                    <h4 className="font-bold text-base text-[#111827] dark:text-[#F3F4F6] mb-1">
-                      {t('cart.empty_title', 'Savatingiz bo‘sh')}
-                    </h4>
-                    <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] max-w-xs mb-6">
-                      {t('cart.empty_desc', 'Katalogimizdan sevimli tortingizni tanlang va buyurtma bering!')}
-                    </p>
-                    <button
-                      onClick={() => setIsCartOpen(false)}
-                      className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl text-xs font-semibold hover:bg-[#1D4ED8] transition-colors cursor-pointer shadow-subtle"
-                    >
-                      {t('cart.browse_cakes', 'Katalogga o‘tish')} →
-                    </button>
+                  <div className="h-full flex items-center justify-center py-12">
+                    <EmptyState
+                      type="cart"
+                      onAction={() => {
+                        setIsCartOpen(false);
+                        navigate('/cakes');
+                      }}
+                    />
                   </div>
                 ) : (
                   cart.map((item) => {

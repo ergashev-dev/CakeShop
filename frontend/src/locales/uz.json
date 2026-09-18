@@ -312,5 +312,127 @@
     "bug_title_label": "Xatolik sarlavhasi",
     "bug_desc_label": "Xatolik haqida batafsil bayon",
     "bug_submit_btn": "Xabarni yuborish"
+  },
+  "ux": {
+    "not_found": {
+      "code": "404",
+      "title": "Bu sahifa topilmadi",
+      "desc": "Qidirayotgan sahifangiz mavjud emas yoki o‘chirib yuborilgan.",
+      "btn_home": "Bosh sahifaga",
+      "btn_back": "Orqaga"
+    },
+    "offline": {
+      "title": "Internetga ulanmagan",
+      "desc": "Internet aloqangizni tekshiring va qayta urinib ko‘ring.",
+      "btn_retry": "Qayta urinish",
+      "restored": "Internet aloqasi tiklandi"
+    },
+    "errors": {
+      "general_title": "Ma'lumotlarni yuklab bo‘lmadi",
+      "general_desc": "Server bilan bog‘lanishda muammo yuz berdi.",
+      "btn_retry": "Qayta urinish",
+      "status_401_title": "Login kerak",
+      "status_401_desc": "Davom etish uchun tizimga kiring.",
+      "status_401_btn": "Kirish",
+      "status_403_title": "Ruxsat yo‘q",
+      "status_403_desc": "Ushbu amalni bajarish uchun sizda yetarli ruxsat yo‘q.",
+      "status_404_title": "Resurs topilmadi",
+      "status_404_desc": "So‘ralgan ma'lumot serverda topilmadi.",
+      "status_408_title": "Ulanish vaqti tugadi",
+      "status_408_desc": "Server javob berishi uzoq davom etdi. Qayta urinib ko‘ring.",
+      "status_429_title": "Juda ko‘p so‘rov",
+      "status_429_desc": "Iltimos, bir oz kuting va qayta urinib ko‘ring.",
+      "status_500_title": "Server xatosi",
+      "status_500_desc": "Serverda kutilmagan nosozlik yuz berdi.",
+      "status_502_title": "Server vaqtincha ishlamayapti",
+      "status_502_desc": "Server yangilanmoqda yoki profilaktika ishlari olib borilmoqda."
+    },
+    "empty": {
+      "search_title": "Hech narsa topilmadi",
+      "search_desc": "Boshqa so‘z bilan qidirib ko‘ring.",
+      "search_btn": "Qidiruvni tozalash",
+      "cart_title": "Savatchangiz bo‘sh",
+      "cart_desc": "Mahsulotlarni tanlab savatchaga qo‘shing.",
+      "cart_btn": "Katalogga o‘tish",
+      "orders_title": "Hozircha buyurtmalar yo‘q",
+      "orders_desc": "Birinchi mazali tortingizga buyurtma bering.",
+      "orders_btn": "Buyurtma berish",
+      "favorites_title": "Sevimlilar bo‘sh",
+      "favorites_desc": "O‘zingizga yoqqan tortlarni saqlab qo‘ying.",
+      "favorites_btn": "Katalogga o‘tish",
+      "products_title": "Hozircha mahsulotlar mavjud emas",
+      "products_desc": "Tez orada yangi tortlar qo‘shiladi.",
+      "products_btn": "Barcha toifalar"
+    },
+    "permissions": {
+      "location": {
+        "title": "Joylashuvingizdan foydalanamiz",
+        "desc": "Yaqin atrofdagi xizmatlarni topish yoki yetkazib berish manzilingizni aniqlash uchun joylashuvga ruxsat kerak.",
+        "btn_grant": "Joylashuvni yoqish",
+        "btn_later": "Keyinroq",
+        "denied_title": "Joylashuvga ruxsat berilmagan",
+        "denied_desc": "Qurilmangiz yoki brauzeringiz sozlamalaridan Location ruxsatini yoqing.",
+        "not_found_title": "Joylashuvni aniqlab bo‘lmadi",
+        "not_found_desc": "Joylashuvingizni tekshirib, qayta urinib ko‘ring."
+      },
+      "camera": {
+        "title": "Kameraga ruxsat kerak",
+        "desc": "QR kod skanerlash yoki rasm olish uchun kameradan foydalanishga ruxsat bering.",
+        "btn_grant": "Ruxsat berish",
+        "btn_cancel": "Bekor qilish",
+        "denied_title": "Kameraga ruxsat berilmagan",
+        "denied_desc": "Brauzer sozlamalaridan kameraga ruxsat bering."
+      },
+      "microphone": {
+        "title": "Mikrofon kerak",
+        "desc": "Ovozli qidiruvdan foydalanish uchun mikrofonga ruxsat bering.",
+        "btn_grant": "Mikrofonga ruxsat berish",
+        "btn_cancel": "Bekor qilish",
+        "denied_title": "Mikrofonga ruxsat berilmagan",
+        "denied_desc": "Ovozli qidiruvdan foydalanish uchun brauzer sozlamalaridan mikrofonga ruxsat bering."
+      },
+      "notification": {
+        "title": "Bildirishnomalarni yoqish",
+        "desc": "Buyurtma holati, yangiliklar va muhim xabarlar haqida bildirishnoma olishni xohlaysizmi?",
+        "btn_grant": "Yoqish",
+        "btn_later": "Keyinroq"
+      }
+    },
+    "file_upload": {
+      "too_large": "Fayl hajmi juda katta",
+      "too_large_desc": "Fayl hajmi 5MB dan oshmasligi lozim.",
+      "invalid_type": "Bu fayl formatini qo‘llab-quvvatlamaymiz",
+      "invalid_type_desc": "Faqat JPG, PNG va WEBP rasmlari qabul qilinadi.",
+      "failed": "Faylni yuklab bo‘lmadi",
+      "btn_reselect": "Qayta tanlash"
+    },
+    "session": {
+      "expired_title": "Seansingiz tugadi",
+      "expired_desc": "Davom etish uchun qayta tizimga kiring.",
+      "btn_login": "Kirish"
+    },
+    "validation": {
+      "required": "Bu maydonni to‘ldiring",
+      "invalid_email": "Email noto‘g‘ri",
+      "password_min": "Parol kamida 8 ta belgidan iborat bo‘lishi kerak",
+      "phone_invalid": "Telefon raqamini to‘liq kiriting (+998...)"
+    },
+    "timeout": {
+      "title": "Ulanish uzoq davom etmoqda",
+      "desc": "Internet aloqangiz sekin bo‘lishi mumkin.",
+      "btn_retry": "Qayta urinish"
+    },
+    "error_boundary": {
+      "title": "Nimadir xato ketdi",
+      "desc": "Sahifani qayta yuklab ko‘ring.",
+      "btn_reload": "Qayta yuklash"
+    },
+    "toasts": {
+      "saved": "Saqlangan",
+      "cart_added": "Mahsulot savatchaga qo‘shildi",
+      "order_created": "Buyurtma yaratildi",
+      "profile_updated": "Profil yangilandi",
+      "action_failed": "Amalni bajarib bo‘lmadi"
+    }
   }
 }

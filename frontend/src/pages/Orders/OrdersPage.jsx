@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { OrderSkeleton } from '../../components/states/LoadingState';
+import EmptyState from '../../components/states/EmptyState';
+import ErrorState from '../../components/states/ErrorState';
 import {
   Package,
   Clock,
@@ -59,12 +62,14 @@ const getStageIndex = (status) => {
 
 const OrdersPage = () => {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { addToCart, setIsCartOpen } = useCart();
   const { toast } = useToast();
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'
 
   const getStatusBadge = (status) => {
@@ -98,10 +103,12 @@ const OrdersPage = () => {
     }
     try {
       setLoading(true);
+      setFetchError(null);
       const res = await orderApi.getMyOrders();
       setOrders(res.data?.orders || []);
     } catch (err) {
       console.error('Failed to fetch orders:', err);
+      setFetchError(err.response?.status || 500);
     } finally {
       setLoading(false);
     }
@@ -261,32 +268,17 @@ const OrdersPage = () => {
 
       {/* Content Section */}
       {loading ? (
-        <div className="py-20 text-center">
-          <div className="w-8 h-8 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF]">{t('common.loading', 'Yuklanmoqda...')}</p>
+        <OrderSkeleton count={2} />
+      ) : fetchError ? (
+        <div className="bg-white dark:bg-[#16181D] rounded-2xl border border-[#E5E7EB] dark:border-[#26282E] p-6 shadow-subtle">
+          <ErrorState status={fetchError} onRetry={fetchOrders} />
         </div>
       ) : currentList.length === 0 ? (
-        <div className="bg-white dark:bg-[#16181D] rounded-2xl border border-[#E5E7EB] dark:border-[#26282E] p-12 text-center max-w-md mx-auto shadow-subtle">
-          <div className="w-14 h-14 rounded-2xl bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 text-[#2563EB] flex items-center justify-center mx-auto mb-4 border border-[#BFDBFE]/60 dark:border-[#1E3A8A]">
-            <Package className="w-7 h-7" />
-          </div>
-          <h3 className="text-base font-bold text-[#111827] dark:text-[#F3F4F6] mb-1">
-            {activeTab === 'active'
-              ? t('orders.empty_active', 'Hozirda faol buyurtmalaringiz yo‘q')
-              : t('orders.empty_history', 'Hozircha buyurtmalar tarixi mavjud emas')}
-          </h3>
-          <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mb-6 max-w-xs mx-auto">
-            {activeTab === 'active'
-              ? t('cart.empty_desc', 'Yangi shirinliklar yoki maxsus bayram tortlariga hoziroq buyurtma bering!')
-              : t('orders.empty_history', 'Siz hali yetkazib berilgan buyurtmalarga ega emassiz.')}
-          </p>
-          <Link
-            to="/cakes"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold shadow-subtle transition-all"
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span>{t('cart.browse_cakes', 'Katalogga o‘tish')}</span>
-          </Link>
+        <div className="bg-white dark:bg-[#16181D] rounded-2xl border border-[#E5E7EB] dark:border-[#26282E] p-6 text-center max-w-md mx-auto shadow-subtle">
+          <EmptyState
+            type="orders"
+            onAction={() => navigate('/cakes')}
+          />
         </div>
       ) : (
         <div className="space-y-6">

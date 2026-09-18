@@ -9,6 +9,7 @@ import ProfilePage from './pages/Profile/ProfilePage';
 import OrdersPage from './pages/Orders/OrdersPage';
 import FavoritesPage from './pages/Favorites/FavoritesPage';
 import AdminPage from './pages/Admin/AdminPage';
+import NotFoundPage from './pages/NotFound/NotFoundPage';
 import Footer from './components/footer/Footer';
 import CartDrawer from './components/cart/CartDrawer';
 import SearchModal from './components/common/SearchModal';
@@ -16,6 +17,9 @@ import AuthModal from './components/auth/AuthModal';
 import TelegramLinkModal from './components/telegram/TelegramLinkModal';
 import CookieConsentBanner from './components/common/CookieConsentBanner';
 import PermissionsModal from './components/common/PermissionsModal';
+import OfflineState from './components/states/OfflineState';
+import SessionExpiredModal from './components/states/SessionExpiredModal';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import ScrollToTop from './utils/ScrollToTop';
 import AdminRoute from './routes/AdminRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -92,6 +96,12 @@ function AppContent() {
     <div className="min-h-screen bg-[#F7F8FA] dark:bg-[#0F1012] text-[#17181A] dark:text-[#F3F4F6] transition-colors duration-200 flex flex-col selection:bg-[#2563EB] selection:text-white">
       <ScrollToTop />
 
+      {/* Global Offline State Banner */}
+      <OfflineState />
+
+      {/* Global Session Expired Modal */}
+      <SessionExpiredModal onLoginClick={() => setIsAuthOpen(true)} />
+
       {/* Global Navbar */}
       {!isAdminRoute && (
         <Navbar
@@ -119,7 +129,8 @@ function AppContent() {
               </AdminRoute>
             }
           />
-          <Route path="*" element={<HomePage />} />
+          {/* 404 Route */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
 
@@ -158,15 +169,17 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <ToastProvider>
-          <WishlistProvider>
-            <AppContent />
-          </WishlistProvider>
-        </ToastProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <WishlistProvider>
+              <AppContent />
+            </WishlistProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
