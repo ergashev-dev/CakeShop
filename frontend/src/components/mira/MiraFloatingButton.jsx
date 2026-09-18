@@ -157,7 +157,7 @@ export const MiraFloatingButton = ({ isOpen, onClick, isEnabled = true }) => {
     return (
       <div
         style={{ top: `${pos.y}px` }}
-        className="fixed right-0 z-40 select-none group cursor-pointer animate-in slide-in-from-right-2 duration-200"
+        className="fixed right-0 z-30 select-none group cursor-pointer animate-in slide-in-from-right-2 duration-200"
         onClick={() => {
           setIsDocked(false);
           onClick();
@@ -184,7 +184,7 @@ export const MiraFloatingButton = ({ isOpen, onClick, isEnabled = true }) => {
     return (
       <div
         style={{ top: `${pos.y}px` }}
-        className="fixed left-0 z-40 select-none group cursor-pointer animate-in slide-in-from-left-2 duration-200"
+        className="fixed left-0 z-30 select-none group cursor-pointer animate-in slide-in-from-left-2 duration-200"
         onClick={() => {
           setIsDocked(false);
           onClick();
@@ -215,7 +215,7 @@ export const MiraFloatingButton = ({ isOpen, onClick, isEnabled = true }) => {
         top: `${pos.y}px`,
         touchAction: 'none',
       }}
-      className={`fixed z-40 select-none flex items-center gap-1.5 transition-shadow ${
+      className={`fixed z-30 select-none flex items-center gap-1.5 transition-shadow ${
         isDragging ? 'cursor-grabbing scale-105 shadow-2xl opacity-90' : 'cursor-grab'
       }`}
       onTouchStart={onTouchStart}

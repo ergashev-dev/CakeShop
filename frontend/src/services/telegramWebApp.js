@@ -16,11 +16,11 @@ export const telegramWebApp = {
    */
   isInsideTelegram() {
     const tg = getTg();
-    return Boolean(tg && tg.initData);
+    return Boolean(tg && (tg.initData || (tg.platform && tg.platform !== 'unknown') || window?.TelegramWebviewProxy));
   },
 
   /**
-   * Initialize TMA 2.0: Fullscreen, swipe prevention, orientation lock
+   * Initialize TMA 2.0: Fullscreen, swipe prevention, orientation lock & theme integration
    */
   init() {
     const tg = getTg();
@@ -30,33 +30,54 @@ export const telegramWebApp = {
       tg.ready();
       tg.expand();
 
-      // 1. Fullscreen mode (Mini Apps 2.0 / Bot API 7.7+)
-      if (typeof tg.requestFullscreen === 'function') {
-        try {
-          tg.requestFullscreen();
-        } catch (e) {
-          console.log('Fullscreen request fallback to expand');
+      // 1. Fullscreen mode (Mini Apps 2.0 / Bot API 8.0+)
+      const requestFs = () => {
+        if (typeof tg.requestFullscreen === 'function' && !tg.isFullscreen) {
+          try {
+            tg.requestFullscreen();
+          } catch (e) {
+            // fallback
+          }
         }
+      };
+
+      requestFs();
+
+      // Many mobile Telegram clients require a user gesture for fullscreen
+      if (typeof document !== 'undefined') {
+        document.addEventListener('touchstart', requestFs, { once: true, passive: true });
+        document.addEventListener('click', requestFs, { once: true, passive: true });
       }
 
-      // 2. Disable accidental vertical swipe down closure
+      // 2. Set native TMA header and background colors to dark premium
+      if (typeof tg.setHeaderColor === 'function') {
+        try { tg.setHeaderColor('#0F172A'); } catch (e) {}
+      }
+      if (typeof tg.setBackgroundColor === 'function') {
+        try { tg.setBackgroundColor('#0F172A'); } catch (e) {}
+      }
+
+      // 3. Disable accidental vertical swipe down closure
       if (typeof tg.disableVerticalSwipes === 'function') {
         try {
           tg.disableVerticalSwipes();
         } catch (e) {}
       }
 
-      // 3. Lock orientation to portrait
+      // 4. Lock orientation to portrait
       if (typeof tg.lockOrientation === 'function') {
         try {
           tg.lockOrientation('portrait');
         } catch (e) {}
       }
 
-      // 4. Setup Safe Area Insets into CSS root variables
+      // 5. Setup Safe Area Insets into CSS root variables
       this.updateSafeAreaInsets();
       if (typeof tg.onEvent === 'function') {
         tg.onEvent('content_safe_area_changed', () => {
+          this.updateSafeAreaInsets();
+        });
+        tg.onEvent('fullscreen_changed', () => {
           this.updateSafeAreaInsets();
         });
       }

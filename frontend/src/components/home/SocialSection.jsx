@@ -24,7 +24,7 @@ const SocialSection = () => {
       tag: '#TruffleCake #BelgianChocolate',
     },
     {
-      image: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=600&q=80',
+      image: '/cake_strawberry.jpg',
       likes: '1 980',
       comments: '92',
       tag: '#PistachioVelvet',

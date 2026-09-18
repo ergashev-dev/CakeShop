@@ -56,8 +56,14 @@ const SwipeableNotificationItem = ({
 
   return (
     <div className="relative overflow-hidden group select-none">
-      {/* Background Action Buttons (Revealed on Swipe Left) */}
-      <div className="absolute inset-y-0 right-0 flex items-center justify-end z-0 w-28">
+      {/* Background Action Buttons (Revealed ONLY on Swipe Left) */}
+      <div
+        style={{
+          opacity: offsetX < 0 ? 1 : 0,
+          pointerEvents: offsetX < -30 ? 'auto' : 'none',
+        }}
+        className="absolute inset-y-0 right-0 flex items-center justify-end z-0 w-28 transition-opacity duration-150"
+      >
         {/* Mark as read button */}
         {!notif.isRead && (
           <button
@@ -92,7 +98,7 @@ const SwipeableNotificationItem = ({
         </button>
       </div>
 
-      {/* Front Notification Card */}
+      {/* Front Notification Card (Solid opaque background) */}
       <div
         style={{
           transform: `translateX(${offsetX}px)`,
@@ -108,8 +114,10 @@ const SwipeableNotificationItem = ({
             onItemClick(notif);
           }
         }}
-        className={`relative z-10 p-3.5 bg-white dark:bg-[#16181D] hover:bg-[#F7F8FA] dark:hover:bg-[#1E2026] transition-colors cursor-pointer flex items-start justify-between gap-3 ${
-          !notif.isRead ? 'bg-[#EFF6FF]/40 dark:bg-[#1E3A8A]/15' : ''
+        className={`relative z-10 p-3.5 transition-colors cursor-pointer flex items-start justify-between gap-3 ${
+          !notif.isRead
+            ? 'bg-[#EEF4FF] dark:bg-[#1A2233] hover:bg-[#E2ECFF] dark:hover:bg-[#202B40]'
+            : 'bg-white dark:bg-[#16181D] hover:bg-[#F7F8FA] dark:hover:bg-[#1E2026]'
         }`}
       >
         <div className="flex-1 pr-2">
@@ -327,7 +335,7 @@ export const NotificationCenter = () => {
 
       {/* Dropdown Menu - Mobile Safe Width & Placement */}
       {isOpen && (
-        <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 max-w-[calc(100vw-1.5rem)] max-h-[75vh] flex flex-col bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl shadow-2xl z-[70] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
           {/* Header */}
           <div className="p-3.5 border-b border-[#E7E9ED] dark:border-[#272A30] flex items-center justify-between">
             <div className="flex items-center gap-2">

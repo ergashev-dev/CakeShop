@@ -19,7 +19,11 @@ router.patch('/kitchen/:id', authMiddleware, confectionerMiddleware, orderContro
 
 // Courier queue (Courier)
 router.get('/courier', authMiddleware, courierMiddleware, orderController.getCourierOrders);
+router.post('/courier/:id/take', authMiddleware, courierMiddleware, orderController.courierTakeOrder);
 router.post('/courier/:id/deliver', authMiddleware, courierMiddleware, orderController.confirmDelivery);
+
+// Stars payment verification
+router.post('/:id/confirm-stars', authMiddleware, orderController.confirmStarsPayment);
 
 // Staff & Admin orders management
 router.get('/', authMiddleware, staffMiddleware, orderController.getAllOrders);

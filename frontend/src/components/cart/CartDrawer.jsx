@@ -209,6 +209,59 @@ const CartDrawer = ({ onAuthRequired }) => {
         total_price: grandTotal,
       };
 
+      // If Stars payment, create order in pending state and ONLY confirm when TMA openInvoice returns 'paid'
+      if (orderPayload.payment_method === 'stars') {
+        const starRate = paymentConfig?.telegramStars?.rateUzsPerStar || 250;
+        const starsNeeded = Math.max(1, Math.round(grandTotal / starRate));
+
+        const response = await orderApi.create({
+          ...orderPayload,
+          payment_status: 'unpaid',
+          status: 'pending',
+        });
+        const createdOrder = response.data.order;
+
+        try {
+          const invRes = await telegramApi.createInvoice({
+            orderId: createdOrder.orderId,
+            amountStars: starsNeeded,
+            title: `Buyurtma #${createdOrder.orderId}`,
+            description: `Bol Tortlari xaridi uchun Telegram Stars to‘lovi`,
+          });
+
+          if (invRes.data?.invoiceLink) {
+            telegramWebApp.openInvoice(invRes.data.invoiceLink, async (status) => {
+              if (status === 'paid') {
+                try {
+                  await orderApi.confirmStars(createdOrder.orderId, { status: 'paid' });
+                } catch (e) {
+                  console.warn('Confirm stars error:', e);
+                }
+                telegramWebApp.haptic.notification('success');
+                setConfirmedOrder(createdOrder);
+                clearCart();
+                setAppliedPromo(null);
+                setPromoInput('');
+                setStep('success');
+                setIsPaymentModalOpen(false);
+              } else {
+                setErrorMessage('Telegram Stars to‘lovi amalga oshmadi yoki bekor qilindi. Buyurtma qabul qilinmadi.');
+              }
+              setLoading(false);
+            });
+            return;
+          } else {
+            throw new Error('Invoice havolasini olib bo‘lmadi.');
+          }
+        } catch (starsErr) {
+          console.error('Stars invoice creation error:', starsErr);
+          setErrorMessage('Stars to‘lov havolasini yaratishda xatolik yuz berdi. Iltimos, boshqa to‘lov turini tanlang.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Standard checkout for Cash, Bank Card, etc.
       const response = await orderApi.create(orderPayload);
       const createdOrder = response.data.order;
 
@@ -221,29 +274,6 @@ const CartDrawer = ({ onAuthRequired }) => {
 
       // TMA Haptic Success
       telegramWebApp.haptic.notification('success');
-
-      // If Stars payment, trigger Telegram Stars invoice
-      if (orderPayload.payment_method === 'stars') {
-        const starRate = paymentConfig?.telegramStars?.rateUzsPerStar || 250;
-        const starsNeeded = Math.max(1, Math.round(grandTotal / starRate));
-        try {
-          const invRes = await telegramApi.createInvoice({
-            orderId: createdOrder.orderId,
-            amountStars: starsNeeded,
-            title: `Buyurtma #${createdOrder.orderId}`,
-            description: `Bol Tortlari xaridi uchun Telegram Stars to‘lovi`,
-          });
-          if (invRes.data?.invoiceLink) {
-            telegramWebApp.openInvoice(invRes.data.invoiceLink, (status) => {
-              if (status === 'paid') {
-                telegramWebApp.haptic.notification('success');
-              }
-            });
-          }
-        } catch (starsErr) {
-          console.warn('Stars invoice creation error:', starsErr);
-        }
-      }
     } catch (err) {
       console.error('Order placement error:', err);
       setErrorMessage(
@@ -708,7 +738,8 @@ const CartDrawer = ({ onAuthRequired }) => {
                         sub: paymentConfig?.bankCard?.bankName || 'Karta o‘tkazmasi',
                       });
                     }
-                    if (paymentConfig?.telegramStars?.isEnabled) {
+                    // Stars payment is ONLY available inside Telegram Web App / Bot
+                    if (paymentConfig?.telegramStars?.isEnabled && telegramWebApp.isInsideTelegram()) {
                       methods.push({
                         id: 'stars',
                         label: 'Telegram Stars',

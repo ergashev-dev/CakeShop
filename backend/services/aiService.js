@@ -153,40 +153,69 @@ export const aiService = {
   },
 
   /**
-   * Call real Google Gemini API (gemini-1.5-flash)
+   * Call Google Gemini API (gemini-1.5-pro with smart fallback to gemini-2.0-flash / gemini-1.5-flash)
    */
-  async callGeminiApi({ prompt, systemInstruction, apiKey }) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  async callGeminiApi({ prompt, systemInstruction, apiKey, history = [] }) {
+    // Model fallback priority: gemini-1.5-pro (deepest Uzbek reasoning & intelligence), then 2.0-flash, then 1.5-flash
+    const models = ['gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+
+    const contents = [];
+    if (Array.isArray(history) && history.length > 0) {
+      for (const h of history.slice(-6)) {
+        const role = h.role === 'assistant' || h.role === 'model' ? 'model' : 'user';
+        const text = (h.content || h.message || '').trim();
+        if (text) {
+          contents.push({
+            role,
+            parts: [{ text }],
+          });
+        }
+      }
+    }
+
+    contents.push({
+      role: 'user',
+      parts: [{ text: prompt }],
+    });
+
     const payload = {
       systemInstruction: {
         parts: [{ text: systemInstruction }],
       },
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }],
-        },
-      ],
+      contents,
       generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 600,
+        temperature: 0.6,
+        maxOutputTokens: 800,
       },
     };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    let lastError = null;
+    for (const model of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini API HTTP ${response.status}: ${errText}`);
+        if (response.ok) {
+          const data = await response.json();
+          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (candidate && candidate.trim()) {
+            return candidate.trim();
+          }
+        } else {
+          const errText = await response.text();
+          lastError = new Error(`Gemini ${model} HTTP ${response.status}: ${errText}`);
+        }
+      } catch (err) {
+        lastError = err;
+      }
     }
 
-    const data = await response.json();
-    const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    return candidate || null;
+    if (lastError) throw lastError;
+    return null;
   },
 
   /**
@@ -477,28 +506,29 @@ export const aiService = {
           .map((m) => `- ${m.fact}`)
           .join('\n');
 
-        const systemInstruction = `Siz "Bol Tortlari" (boltortlar.uz) rasmiy aqlli AI yordamchisi "Mira"siz.
-ASOSIY QOIDALAR:
-1. Sayt va Mira AI yaratuvchisi, asoschisi hamda yetakchi dasturchisi: Abdurashid Ergashev. Agar foydalanuvchi "seni kim yaratgan", "dasturchi kim", "sayt egasi kim" deb so'rasa, albatta "Abdurashid Ergashev" deb javob bering.
-2. Bol Tortlari haqida ma'lumot:
-   - Filiallar: Toshkent shahri (barcha tumanlar) va Farg'ona shahri.
-   - Ish vaqti: 09:00 - 21:00 (dam olish kunlarisiz).
+        const systemInstruction = `Siz "Bol Tortlari" (boltortlar.uz) qandolatchilik platformasining rasmiy va o'ta intellektual AI yordamchisi "Mira"siz.
+ASOSIY BILIMLAR VA QOIDALAR:
+1. Sayt va Mira AI yaratuvchisi, asoschisi hamda yetakchi dasturchisi: Abdurashid Ergashev. Agar foydalanuvchi "seni kim yaratgan", "dasturchi kim", "sayt egasi kim", "kim qilgan" deb so'rasa, har doim loyiha asoschisi va yetakchi dasturchisi Abdurashid Ergashev ekanligini faxr bilan ayting.
+2. Bol Tortlari qandolatxonasi haqida ma'lumot:
+   - Filiallar: Toshkent shahri (barcha tumanlar) va Farg'ona shahri (hamda Uchko'prik).
+   - Ish vaqti: Har kuni 09:00 dan 21:00 gacha (dam olish kunlarisiz).
    - Telefon: +998 (90) 123-45-67, Telegram: @boltortlari_admin.
-   - Yetkazib berish: Shahar ichida 15 000 so'm, 300 000 so'mdan yuqori buyurtmalar bepul. 45-90 daqiqada yetkaziladi.
-   - To'lov turlari: Payme, Click, karta (Humo/Uzcard), naqd pul.
-3. Maxsus xotiralar va faktlar:
-${memorySummary || 'Maxsus xotiralar kiritilmagan.'}
-4. Katalogdagi mashhur tortlar:
+   - Yetkazib berish: Shahar ichida 15 000 so'm. 300 000 so'mdan oshgan buyurtmalar uchun bepul yetkaziladi. Tezkor yetkazish 45-90 daqiqa.
+   - To'lov turlari: Naqd pul (kuryerga), Bank kartasi (Uzcard/Humo karta o'tkazmasi), Payme, Click, hamda Telegram bot/Web App ichida Telegram Stars (XTR).
+3. Maxsus o'rgatilgan bilimlar:
+${memorySummary || 'Maxsus xotiralar yo‘q.'}
+4. Joriy menyu va mashhur tortlarimiz:
 ${cakeSummary}
-5. Muloqot qoidalari:
-   - Foydalanuvchi qaysi tilda yozsa (o'zbekcha, ruscha yoki inglizcha), faqat shu tilda muloyim va aniq javob bering.
-   - Ortiqcha gap va doston yozmang. Faqat so'ralgan savolga lo‘nda va chiroyli javob bering.
-   - Agar foydalanuvchi narx yoki tort qidirayotgan bo'lsa, mavjud katalogdagi tortlarni tavsiya qiling.`;
+5. Intellekt va muloqot odobi:
+   - Foydalanuvchi oddiy so'zlashuvda, qisqa iboralarda, shevada yoki imlo xatolari bilan yozsa ham ("salom qalaysan", "tort nechi pul", "dastafka qancha", "yaxshisidan bormi"), uning niyatini darhol teran tushunib, samimiy, dono va aniq javob bering.
+   - Hech qachon foydalanuvchi so'ramagan keraksiz dostonlarni yoki robotdek quruq ro'yxatlarni to'kib tashlamang.
+   - Suhbat qaysi tilda bo'lsa (o'zbek, rus, ingliz), shu tilda chiroyli javob bering.`;
 
         const geminiReply = await this.callGeminiApi({
           prompt: message,
           systemInstruction,
           apiKey: geminiKey.trim(),
+          history,
         });
 
         if (geminiReply && geminiReply.trim()) {
@@ -677,26 +707,48 @@ ${cakeSummary}
 
     // 2. Analytics queries for Admin Copilot
     if (lower.includes('savdo') || lower.includes('tushum') || lower.includes('daromad') || lower.includes('statistika')) {
-      const allOrders = await Order.find({});
-      const today = new Date().toISOString().split('T')[0];
-      const todayOrders = allOrders.filter((o) => o.createdAt && o.createdAt.startsWith(today));
-      const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-      const totalRevenue = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-      const pendingOrders = allOrders.filter((o) => ['pending', 'preparing', 'confirmed'].includes(o.status));
+      try {
+        const allOrders = (await Order.find({})) || [];
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
 
-      return {
-        reply: `📊 **Bol Tortlari — Kunlik Operatsion Hisobot:**\n\n- 💰 **Bugungi tushum:** ${todayRevenue.toLocaleString()} so‘m (${todayOrders.length} ta buyurtma)\n- 📦 **Kutilayotgan/Jarayondagi buyurtmalar:** ${pendingOrders.length} ta\n- 📈 **Jami umumiy aylanma:** ${totalRevenue.toLocaleString()} so‘m\n\nBarcha tizimlar va kuryerlar navbati bir maromda ishlamoqda.`,
-        action: 'admin_stats',
-      };
+        const todayOrders = allOrders.filter((o) => {
+          if (!o.createdAt) return false;
+          const d = new Date(o.createdAt);
+          return !isNaN(d.getTime()) && d >= startOfDay;
+        });
+
+        const todayRevenue = todayOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+        const totalRevenue = allOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+        const pendingOrders = allOrders.filter((o) => ['pending', 'preparing', 'confirmed'].includes(o.status));
+
+        return {
+          reply: `📊 **Bol Tortlari — Kunlik Operatsion Hisobot:**\n\n- 💰 **Bugungi tushum:** ${todayRevenue.toLocaleString()} so‘m (${todayOrders.length} ta buyurtma)\n- 📦 **Kutilayotgan/Jarayondagi buyurtmalar:** ${pendingOrders.length} ta\n- 📈 **Jami umumiy aylanma:** ${totalRevenue.toLocaleString()} so‘m\n\nBarcha tizimlar va kuryerlar navbati bir maromda ishlamoqda.`,
+          action: 'admin_stats',
+        };
+      } catch (statsErr) {
+        console.warn('Admin copilot stats error:', statsErr);
+        return {
+          reply: '📊 Savdo ma’lumotlarini tahlil qilishda texnik uzilish bo‘ldi. Iltimos, qayta urinib ko‘ring.',
+          action: 'admin_stats',
+        };
+      }
     }
 
     if (lower.includes('ommabop') || lower.includes('eng ko‘p') || lower.includes('eng kop') || lower.includes('xit')) {
-      const cakes = await Cake.find({ is_popular: 1 });
-      const cakeNames = cakes.map((c) => `• ${c.name} (${c.price.toLocaleString()} so‘m)`).join('\n');
-      return {
-        reply: `🎂 **Eng xaridorgir va ommabop tortlar:**\n\n${cakeNames || 'Barcha tortlar katalogda faol.'}\n\nMijozlar ushbu tortlarga eng ko‘p buyurtma berishmoqda.`,
-        action: 'admin_popular',
-      };
+      try {
+        const cakes = (await Cake.find({ $or: [{ is_popular: true }, { is_popular: 1 }] })) || [];
+        const cakeNames = cakes.map((c) => `• ${c.name} (${(c.price || 0).toLocaleString()} so‘m)`).join('\n');
+        return {
+          reply: `🎂 **Eng xaridorgir va ommabop tortlar:**\n\n${cakeNames || 'Barcha tortlar katalogda faol.'}\n\nMijozlar ushbu tortlarga eng ko‘p buyurtma berishmoqda.`,
+          action: 'admin_popular',
+        };
+      } catch (popErr) {
+        return {
+          reply: '🎂 Katalogdagi barcha tortlar faol va sotuvda mavjud.',
+          action: 'admin_popular',
+        };
+      }
     }
 
     // 3. General Admin Copilot advice

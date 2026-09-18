@@ -84,6 +84,8 @@ export const orderApi = {
   // Courier
   getCourierOrders: () => api.get('/orders/courier'),
   confirmDelivery: (id) => api.post(`/orders/courier/${id}/deliver`),
+  // Stars payment confirmation
+  confirmStars: (id, data) => api.post(`/orders/${id}/confirm-stars`, data),
 };
 
 export const userApi = {

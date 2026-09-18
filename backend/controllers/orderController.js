@@ -354,6 +354,11 @@ export const orderController = {
       await order.save();
 
       socketService.emitOrderStatus(order);
+      telegramBotService.notifyCustomerOrderStatus(order);
+
+      if (order.status === 'ready') {
+        telegramBotService.notifyCourierOrderReady(order);
+      }
 
       return res.json({
         message: `Buyurtma holati «${order.status}»ga o‘zgartirildi.`,
@@ -416,6 +421,94 @@ export const orderController = {
     } catch (error) {
       console.error('Confirm delivery error:', error);
       return res.status(500).json({ error: 'Yetkazishni tasdiqlashda xatolik.' });
+    }
+  },
+
+  /**
+   * Courier takes order to deliver: ready -> delivering
+   */
+  async courierTakeOrder(req, res) {
+    try {
+      const { id } = req.params;
+      const order = await findOrderSafely(id);
+      if (!order) {
+        return res.status(404).json({ error: 'Buyurtma topilmadi.' });
+      }
+
+      const prevStatus = order.status;
+      order.status = 'delivering';
+      if (req.user) order.courier = req.user._id;
+
+      const history = order.status_history || [];
+      history.push({
+        previous_status: prevStatus,
+        new_status: 'delivering',
+        changed_by: req.user?.name || 'Kuryer',
+        changed_at: new Date(),
+      });
+      order.status_history = history;
+
+      await order.save();
+
+      socketService.emitOrderStatus(order);
+      telegramBotService.notifyCustomerOrderStatus(order);
+
+      return res.json({
+        message: `Buyurtma #${order.orderId} yetkazish uchun qabul qilindi. Yo‘lga chiqildi!`,
+        order,
+      });
+    } catch (error) {
+      console.error('Courier take order error:', error);
+      return res.status(500).json({ error: 'Buyurtmani yetkazishga olishda xatolik.' });
+    }
+  },
+
+  /**
+   * Confirm Telegram Stars payment from Web App
+   */
+  async confirmStarsPayment(req, res) {
+    try {
+      const { id } = req.params;
+      const { status, chargeId } = req.body;
+
+      if (status !== 'paid') {
+        return res.status(400).json({ error: 'To‘lov tasdiqlanmadi.' });
+      }
+
+      const order = await findOrderSafely(id);
+      if (!order) {
+        return res.status(404).json({ error: 'Buyurtma topilmadi.' });
+      }
+
+      const prevStatus = order.status;
+      order.payment_status = 'paid';
+      order.payment_method = 'stars';
+      order.status = 'confirmed';
+      if (chargeId) order.payment_ref = chargeId;
+
+      const history = order.status_history || [];
+      history.push({
+        previous_status: prevStatus,
+        new_status: 'confirmed',
+        changed_by: req.user ? req.user.name : 'Telegram Stars',
+        changed_at: new Date(),
+      });
+      order.status_history = history;
+
+      await order.save();
+
+      // Emit new order to kitchen & admin
+      socketService.emitNewOrder(order);
+      telegramBotService.notifyNewOrder(order);
+      telegramBotService.notifyCustomerOrderStatus(order);
+
+      return res.json({
+        message: 'Stars to‘lovi muvaffaqiyatli qabul qilindi. Buyurtma tasdiqlandi!',
+        order,
+      });
+    } catch (error) {
+      console.error('Confirm Stars payment error:', error);
+      return res.status(500).json({ error: 'Stars to‘lovini tasdiqlashda xatolik.' });
     }
   },
 

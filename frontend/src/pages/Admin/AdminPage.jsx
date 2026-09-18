@@ -452,6 +452,22 @@ const AdminPage = () => {
     }
   };
 
+  // Courier: ready -> delivering
+  const handleCourierTake = async (orderId) => {
+    try {
+      setActionLoading(true);
+      await api.post(`/orders/courier/${orderId}/take`);
+      setCourierOrders((prev) =>
+        prev.map((o) => (o.orderId === orderId ? { ...o, status: 'delivering' } : o))
+      );
+      showToast(`Buyurtma #${orderId} yetkazishga olindi. Yo‘lga chiqildi!`);
+    } catch (err) {
+      showToast('Yetkazishga olishda xatolik.', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Courier: confirm delivery
   const handleCourierDeliver = async (orderId) => {
     if (!window.confirm(`Buyurtma #${orderId} mijozga yetkazilganini tasdiqlaysizmi?`)) return;
@@ -1662,7 +1678,7 @@ const AdminPage = () => {
                             {ord.customer_name}
                           </div>
                           <div className="text-xs text-[#6B7280] flex items-center gap-2">
-                            <a href={`tel:${ord.customer_phone}`} className="hover:underline text-[#2563EB] flex items-center gap-1">
+                            <a href={`tel:${(ord.customer_phone || '').replace(/[^\d+]/g, '')}`} className="hover:underline text-[#2563EB] flex items-center gap-1">
                               <Phone className="w-3 h-3" /> {ord.customer_phone}
                             </a>
                           </div>
@@ -1746,7 +1762,7 @@ const AdminPage = () => {
                                 <div className="font-semibold text-[#111827] dark:text-[#F3F4F6] max-w-[140px] truncate" title={ord.customer_name}>
                                   {ord.customer_name}
                                 </div>
-                                <a href={`tel:${ord.customer_phone}`} className="text-[#6B7280] hover:underline text-[11px]">
+                                <a href={`tel:${(ord.customer_phone || '').replace(/[^\d+]/g, '')}`} className="text-[#6B7280] hover:underline text-[11px]">
                                   {ord.customer_phone}
                                 </a>
                               </td>
@@ -1951,7 +1967,7 @@ const AdminPage = () => {
 
                         {/* Quick Call Button */}
                         <a
-                          href={`tel:${ord.customer_phone}`}
+                          href={`tel:${(ord.customer_phone || '').replace(/[^\d+]/g, '')}`}
                           className="w-full py-2 px-3 rounded-xl border border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-2"
                         >
                           <Phone className="w-3.5 h-3.5" />
@@ -1959,15 +1975,25 @@ const AdminPage = () => {
                         </a>
                       </div>
 
-                      {/* Confirm Delivery button */}
+                      {/* Courier Action Buttons: Take order when ready, confirm when delivering */}
                       <div className="pt-4 mt-4 border-t border-[#E7E9ED] dark:border-[#272A30]">
-                        <button
-                          onClick={() => handleCourierDeliver(ord.orderId)}
-                          className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Yetkazildi deb tasdiqlash</span>
-                        </button>
+                        {ord.status === 'ready' ? (
+                          <button
+                            onClick={() => handleCourierTake(ord.orderId)}
+                            className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                          >
+                            <Truck className="w-4 h-4" />
+                            <span>🛵 Yo‘lga chiqdim (Yetkazishni boshlash)</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleCourierDeliver(ord.orderId)}
+                            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>🎉 Yetkazildi deb tasdiqlash</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -4663,7 +4689,7 @@ const AdminPage = () => {
                 <div className="font-bold text-sm">{selectedOrderDetails.customer_name}</div>
                 <div className="text-[#6B7280] flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5" />
-                  <a href={`tel:${selectedOrderDetails.customer_phone}`} className="hover:underline text-[#2563EB]">
+                  <a href={`tel:${(selectedOrderDetails.customer_phone || '').replace(/[^\d+]/g, '')}`} className="hover:underline text-[#2563EB]">
                     {selectedOrderDetails.customer_phone}
                   </a>
                 </div>

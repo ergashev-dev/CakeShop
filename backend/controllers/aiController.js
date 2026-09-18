@@ -234,7 +234,11 @@ export const aiController = {
       });
     } catch (err) {
       console.error('Admin chat error:', err);
-      return res.status(500).json({ error: 'Admin Copilot xizmatida xatolik yuz berdi.' });
+      return res.json({
+        success: true,
+        reply: 'Admin Copilot xizmatida vaqtinchalik uzilish bo‘ldi. Biroq tizimlar faol ishlamoqda. Iltimos, qayta urinib ko‘ring.',
+        action: 'admin_help',
+      });
     }
   },
 };

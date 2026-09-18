@@ -23,29 +23,24 @@ const PRESET_CAKE_IMAGES = [
     url: '/cake_strawberry.jpg',
   },
   {
-    id: 'red_velvet',
-    name: 'Qizil Baxmal (Red Velvet)',
-    url: 'https://images.unsplash.com/photo-1586788680434-30d324b2d46f?w=600&auto=format&fit=crop&q=80',
+    id: 'hero_luxury',
+    name: 'Shohona Bayram Torti',
+    url: '/hero-cake.jpg',
   },
   {
-    id: 'pistachio_tart',
-    name: 'Pista & Mevali Tart',
-    url: 'https://images.unsplash.com/photo-1535141192574-5d4897c13136?w=600&auto=format&fit=crop&q=80',
+    id: 'og_wedding',
+    name: 'To‘y & Bayram Kolleksiyasi',
+    url: '/og-image.jpg',
   },
   {
-    id: 'bento_cake',
-    name: 'Bento Mini Tort',
-    url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&auto=format&fit=crop&q=80',
+    id: 'bento_delight',
+    name: 'Shokoladli Ganash Tort',
+    url: '/cake_chocolate.jpg',
   },
   {
-    id: 'wedding_luxury',
-    name: 'Hashamatli To‘y Torti',
-    url: 'https://images.unsplash.com/photo-1535254973040-607b474cb50d?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'cheesecake',
-    name: 'Nyu-York Chizkeyk',
-    url: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&auto=format&fit=crop&q=80',
+    id: 'berry_velvet',
+    name: 'Yangi Mevali Shirinlik',
+    url: '/cake_strawberry.jpg',
   },
 ];
 
@@ -363,7 +358,7 @@ export default function ImagePicker({
             <div className="space-y-2">
               <input
                 type="url"
-                placeholder="https://images.unsplash.com/photo-..."
+                placeholder="https://example.com/rasm.jpg yoki /cake_chocolate.jpg"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 className="w-full px-3.5 py-2 rounded-xl border border-[#E5E7EB] dark:border-[#26282E] bg-white dark:bg-[#1F2228] text-xs outline-none focus:border-[#2563EB] text-[#111827] dark:text-[#F3F4F6]"

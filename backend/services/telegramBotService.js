@@ -699,11 +699,36 @@ class TelegramBotService {
           show_alert: true,
         });
 
+        // Dynamic keyboards based on phase (Confectioner -> Courier)
+        let updatedKeyboard = null;
+        if (newStatus === 'preparing') {
+          updatedKeyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('🧁 Tayyor bo‘ldi (Kuryerga uzatish)', `ord_status:${order.orderId}:ready`)],
+            [Markup.button.callback('❌ Bekor qilish', `ord_status:${order.orderId}:cancelled`)],
+          ]);
+        } else if (newStatus === 'ready') {
+          updatedKeyboard = Markup.inlineKeyboard([
+            [
+              Markup.button.callback('🛵 Yo‘lga chiqish (Kuryer)', `ord_status:${order.orderId}:on_the_way`),
+              Markup.button.callback('🎉 Yetkazildi', `ord_status:${order.orderId}:delivered`),
+            ],
+          ]);
+        } else if (newStatus === 'on_the_way' || newStatus === 'delivering') {
+          updatedKeyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('🎉 Yetkazildi deb tasdiqlash', `ord_status:${order.orderId}:delivered`)],
+          ]);
+        }
+
         try {
-          await ctx.editMessageText(
-            ctx.callbackQuery.message.text + `\n\n✏️ <i>Holat yangilandi: ${STATUS_LABELS[newStatus] || newStatus}</i>`,
-            { parse_mode: 'HTML' }
-          );
+          const newText =
+            ctx.callbackQuery.message.text.split('\n\n✏️')[0] +
+            `\n\n✏️ <i>Holat yangilandi: ${STATUS_LABELS[newStatus] || newStatus}</i>` +
+            (newStatus === 'ready' ? `\n🛵 <b>Buyurtma kuryer qabul qilishi uchun tayyor!</b>` : '');
+
+          await ctx.editMessageText(newText, {
+            parse_mode: 'HTML',
+            ...(updatedKeyboard || {}),
+          });
         } catch (e) {}
       } catch (err) {
         console.error('Order status callback error:', err);
@@ -731,7 +756,8 @@ class TelegramBotService {
             order.payment_status = 'paid';
             order.status = 'confirmed';
             await order.save();
-            await this.notifyAdminsNewOrder(order);
+            socketService.emitNewOrder(order);
+            await this.notifyNewOrder(order);
             await this.notifyCustomerOrderStatus(order);
           }
         }
@@ -1002,12 +1028,8 @@ class TelegramBotService {
 
       const keyboard = Markup.inlineKeyboard([
         [
-          Markup.button.callback('✅ Qabul qilish', `ord_status:${order.orderId}:confirmed`),
-          Markup.button.callback('👨‍🍳 Oshxona', `ord_status:${order.orderId}:preparing`),
-        ],
-        [
-          Markup.button.callback('🛵 Kuryerda', `ord_status:${order.orderId}:on_the_way`),
-          Markup.button.callback('🎉 Yetkazildi', `ord_status:${order.orderId}:delivered`),
+          Markup.button.callback('👨‍🍳 Oshxonaga (Pishirish)', `ord_status:${order.orderId}:preparing`),
+          Markup.button.callback('🧁 Tayyor bo‘ldi', `ord_status:${order.orderId}:ready`),
         ],
         [Markup.button.callback('❌ Bekor qilish', `ord_status:${order.orderId}:cancelled`)],
       ]);
@@ -1102,6 +1124,40 @@ class TelegramBotService {
       });
     } catch (err) {
       console.error('Xaridorga Telegram xabari yuborishda xatolik:', err.message);
+    }
+  }
+
+  /**
+   * Notify Courier when cake is ready in kitchen
+   */
+  async notifyCourierOrderReady(order) {
+    if (!this.bot || !order) return;
+    try {
+      const text =
+        `🧁 <b>TORT TAYYOR BO‘LDI! Yetkazishga tayyor.</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `• Buyurtma: <b>#${order.orderId}</b>\n` +
+        `• Mijoz: <b>${order.customer_name}</b>\n` +
+        `• Telefon: <code>${order.customer_phone}</code>\n` +
+        `• Manzil: <b>${order.customer_address}</b>\n` +
+        `• Jami summa: <b>${(order.total || 0).toLocaleString()} so‘m</b>\n` +
+        (order.notes ? `• Izoh: <i>${order.notes}</i>\n` : '') +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `Kuryer, buyurtmani yetkazish uchun oling:`;
+
+      const keyboard = Markup.inlineKeyboard([
+        [
+          Markup.button.callback('🛵 Yo‘lga chiqdim', `ord_status:${order.orderId}:on_the_way`),
+          Markup.button.callback('🎉 Yetkazildi', `ord_status:${order.orderId}:delivered`),
+        ],
+      ]);
+
+      await this.bot.telegram.sendMessage(this.adminChatId, text, {
+        parse_mode: 'HTML',
+        ...keyboard,
+      });
+    } catch (err) {
+      console.error('Notify courier ready error:', err.message);
     }
   }
 
