@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { authApi } from '../../services/api';
 import Button from '../common/Button';
+import telegramWebApp from '../../services/telegramWebApp';
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{4,32}$/;
 
@@ -35,6 +36,12 @@ const AuthModal = ({ isOpen, onClose }) => {
     resetPassword,
   } = useAuth();
   const { toast } = useToast();
+
+  const [isTg, setIsTg] = useState(false);
+
+  useEffect(() => {
+    setIsTg(telegramWebApp.isInsideTelegram());
+  }, []);
 
   // Modes: 'login' | 'register' | 'verify_email' | 'forgot_step_1' | 'forgot_step_2' | 'forgot_step_3'
   const [mode, setMode] = useState('login');
@@ -379,7 +386,15 @@ const AuthModal = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-4 flex justify-center items-center">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto p-4 flex justify-center items-center"
+      style={{
+        paddingTop: isTg
+          ? 'max(var(--tg-content-safe-area-top, 56px), env(safe-area-inset-top, 0px), 56px)'
+          : undefined,
+        paddingBottom: 'max(var(--tg-content-safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px), 24px)',
+      }}
+    >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in"

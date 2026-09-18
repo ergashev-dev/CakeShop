@@ -92,7 +92,9 @@ const Navbar = ({ onSearchClick, onAuthClick, onTelegramClick }) => {
           isScrolled ? 'shadow-subtle' : ''
         }`}
         style={{
-          paddingTop: 'max(var(--tg-content-safe-area-top, 0px), var(--tg-safe-area-top, 0px), env(safe-area-inset-top, 0px))',
+          paddingTop: isTg
+            ? 'max(var(--tg-content-safe-area-top, 54px), var(--tg-safe-area-top, 54px), env(safe-area-inset-top, 0px), 54px)'
+            : 'max(env(safe-area-inset-top, 0px), 0px)',
         }}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">

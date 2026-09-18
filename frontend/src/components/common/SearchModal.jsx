@@ -7,8 +7,8 @@ import { formatPrice } from '../../utils/formatters';
 import { handleImageError, DEFAULT_CAKE_IMAGE } from '../../utils/imageFallback';
 import { SearchSkeleton } from '../states/LoadingState';
 import EmptyState from '../states/EmptyState';
-import PermissionModal from '../states/PermissionModal';
 import { usePermission } from '../../hooks/usePermission';
+import telegramWebApp from '../../services/telegramWebApp';
 
 const SearchModal = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
@@ -18,9 +18,14 @@ const SearchModal = ({ isOpen, onClose }) => {
   const [isListening, setIsListening] = useState(false);
   const [isMicModalOpen, setIsMicModalOpen] = useState(false);
   const [isMicDenied, setIsMicDenied] = useState(false);
+  const [isTg, setIsTg] = useState(false);
   const recognitionRef = useRef(null);
   const inputRef = useRef(null);
   const { requestMicrophone } = usePermission();
+
+  useEffect(() => {
+    setIsTg(telegramWebApp.isInsideTelegram());
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -134,7 +139,14 @@ const SearchModal = ({ isOpen, onClose }) => {
         );
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-4 sm:p-8 md:p-16 flex justify-center items-start">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto p-4 sm:p-8 md:p-16 flex justify-center items-start"
+      style={{
+        paddingTop: isTg
+          ? 'max(var(--tg-content-safe-area-top, 56px), env(safe-area-inset-top, 0px), 56px)'
+          : undefined,
+      }}
+    >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"

@@ -16,7 +16,14 @@ export const telegramWebApp = {
    */
   isInsideTelegram() {
     const tg = getTg();
-    return Boolean(tg && (tg.initData || (tg.platform && tg.platform !== 'unknown') || window?.TelegramWebviewProxy));
+    if (!tg) return false;
+    if (tg.initData && tg.initData.length > 0) return true;
+    if (tg.platform && tg.platform !== 'unknown') return true;
+    if (typeof window !== 'undefined') {
+      if (window.TelegramWebviewProxy || window.__telegram__init__) return true;
+      if (window.location.hash.includes('tgWebAppData') || window.location.search.includes('tgWebAppData') || window.location.hash.includes('tgWebAppVersion')) return true;
+    }
+    return Boolean(tg.version);
   },
 
   /**
@@ -24,6 +31,8 @@ export const telegramWebApp = {
    */
   init() {
     const tg = getTg();
+    this.updateSafeAreaInsets();
+
     if (!tg) return;
 
     try {
@@ -80,6 +89,9 @@ export const telegramWebApp = {
         tg.onEvent('fullscreen_changed', () => {
           this.updateSafeAreaInsets();
         });
+        tg.onEvent('safe_area_changed', () => {
+          this.updateSafeAreaInsets();
+        });
       }
     } catch (err) {
       console.warn('TMA init warning:', err);
@@ -91,13 +103,25 @@ export const telegramWebApp = {
    */
   updateSafeAreaInsets() {
     const tg = getTg();
-    if (!tg || typeof document === 'undefined') return;
+    if (typeof document === 'undefined') return;
 
-    const topInset = tg.contentSafeAreaInset?.top || tg.safeAreaInset?.top || 0;
-    const bottomInset = tg.contentSafeAreaInset?.bottom || tg.safeAreaInset?.bottom || 0;
+    const isInside = this.isInsideTelegram();
+    const rawTop = tg?.contentSafeAreaInset?.top || tg?.safeAreaInset?.top || 0;
+    const rawBottom = tg?.contentSafeAreaInset?.bottom || tg?.safeAreaInset?.bottom || 0;
+
+    // In TMA, if top inset is 0 or low, guarantee at least 54px to clear phone status bar & Telegram's '✕ Yopish' header
+    const topInset = isInside ? Math.max(rawTop, 54) : rawTop;
+    const bottomInset = isInside ? Math.max(rawBottom, 12) : rawBottom;
 
     document.documentElement.style.setProperty('--tg-content-safe-area-top', `${topInset}px`);
     document.documentElement.style.setProperty('--tg-content-safe-area-bottom', `${bottomInset}px`);
+    document.documentElement.style.setProperty('--tg-safe-area-top', `${topInset}px`);
+    document.documentElement.style.setProperty('--tg-safe-area-bottom', `${bottomInset}px`);
+
+    if (isInside) {
+      document.documentElement.classList.add('tma-app');
+      document.body?.classList.add('tma-app');
+    }
   },
 
   /**

@@ -54,6 +54,11 @@ const CartDrawer = ({ onAuthRequired }) => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentConfig, setPaymentConfig] = useState(null);
   const [copiedCard, setCopiedCard] = useState(false);
+  const [isTg, setIsTg] = useState(false);
+
+  useEffect(() => {
+    setIsTg(telegramWebApp.isInsideTelegram());
+  }, []);
 
   // Load payment settings from backend
   useEffect(() => {
@@ -355,7 +360,14 @@ const CartDrawer = ({ onAuthRequired }) => {
         <div className="w-screen max-w-md bg-white dark:bg-[#16181D] border-l border-[#E5E7EB] dark:border-[#26282E] shadow-2xl flex flex-col justify-between z-50 animate-in slide-in-from-right duration-200">
           
           {/* HEADER */}
-          <div className="p-4 sm:p-5 border-b border-[#E5E7EB] dark:border-[#26282E] flex items-center justify-between bg-[#FBFBFC] dark:bg-[#1F2228]">
+          <div
+            className="p-4 sm:p-5 border-b border-[#E5E7EB] dark:border-[#26282E] flex items-center justify-between bg-[#FBFBFC] dark:bg-[#1F2228] shrink-0"
+            style={{
+              paddingTop: isTg
+                ? 'max(var(--tg-content-safe-area-top, 54px), var(--tg-safe-area-top, 54px), env(safe-area-inset-top, 0px), 54px)'
+                : 'max(env(safe-area-inset-top, 0px), 16px)',
+            }}
+          >
             <div className="flex items-center gap-2">
               {step === 'checkout' ? (
                 <button
@@ -473,7 +485,12 @@ const CartDrawer = ({ onAuthRequired }) => {
 
               {/* Cart Summary, Promo & Next Action */}
               {cart.length > 0 && (
-                <div className="p-4 sm:p-5 border-t border-[#E5E7EB] dark:border-[#26282E] bg-[#FBFBFC] dark:bg-[#1F2228] space-y-3">
+                <div
+                  className="p-4 sm:p-5 border-t border-[#E5E7EB] dark:border-[#26282E] bg-[#FBFBFC] dark:bg-[#1F2228] space-y-3 shrink-0"
+                  style={{
+                    paddingBottom: 'max(var(--tg-content-safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px), 16px)',
+                  }}
+                >
                   {/* Promo Code Input Bar */}
                   <form onSubmit={handleApplyPromo} className="flex gap-2">
                     <div className="relative flex-1">
@@ -842,7 +859,12 @@ const CartDrawer = ({ onAuthRequired }) => {
               </div>
 
               {/* Action Bar */}
-              <div className="p-4 sm:p-5 border-t border-[#E5E7EB] dark:border-[#26282E] bg-[#FBFBFC] dark:bg-[#1F2228] space-y-2.5">
+              <div
+                className="p-4 sm:p-5 border-t border-[#E5E7EB] dark:border-[#26282E] bg-[#FBFBFC] dark:bg-[#1F2228] space-y-2.5 shrink-0"
+                style={{
+                  paddingBottom: 'max(var(--tg-content-safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px), 16px)',
+                }}
+              >
                 <div className="flex justify-between text-xs text-[#6B7280] dark:text-[#9CA3AF]">
                   <span>{t('cart.grand_total', 'Jami to‘lov miqdori:')}</span>
                   <span className="text-sm font-bold text-[#2563EB]">
@@ -917,7 +939,12 @@ const CartDrawer = ({ onAuthRequired }) => {
                 </div>
               </div>
 
-              <div className="pt-4 space-y-2">
+              <div
+                className="pt-4 space-y-2 shrink-0"
+                style={{
+                  paddingBottom: 'max(var(--tg-content-safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px), 16px)',
+                }}
+              >
                 {confirmedOrder.payment_status === 'paid' ? (
                   <div className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 font-bold text-xs border border-emerald-200 dark:border-emerald-800">
                     <CheckCircle2 className="w-4 h-4" /> {t('cart.payment_successful', 'To‘lov muvaffaqiyatli qabul qilindi')}

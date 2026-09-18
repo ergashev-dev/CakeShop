@@ -186,7 +186,7 @@ function AppContent() {
       )}
 
       {/* Page Routes */}
-      <main className="flex-1 flex flex-col pb-16 md:pb-0">
+      <main className="flex-1 flex flex-col pb-24 md:pb-0">
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/cakes" element={<CakesPage />} />

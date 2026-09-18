@@ -76,7 +76,12 @@ const PermissionsModal = () => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200"
+      style={{
+        paddingBottom: 'max(var(--tg-content-safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px), 16px)',
+      }}
+    >
       <div className="w-full max-w-md bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
         
         {/* Header */}

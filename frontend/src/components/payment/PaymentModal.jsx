@@ -143,7 +143,13 @@ const PaymentModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-4 flex justify-center items-center">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto p-4 flex justify-center items-center"
+      style={{
+        paddingTop: 'max(var(--tg-content-safe-area-top, 0px), env(safe-area-inset-top, 0px), 24px)',
+        paddingBottom: 'max(var(--tg-content-safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px), 24px)',
+      }}
+    >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in"

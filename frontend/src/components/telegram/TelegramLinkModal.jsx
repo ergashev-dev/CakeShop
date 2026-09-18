@@ -4,6 +4,7 @@ import { userApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import socketClient from '../../services/socket';
+import telegramWebApp from '../../services/telegramWebApp';
 
 const TelegramLinkModal = ({ isOpen, onClose }) => {
   const { user, setUser } = useAuth();
@@ -13,6 +14,11 @@ const TelegramLinkModal = ({ isOpen, onClose }) => {
   const [linkData, setLinkData] = useState(null);
   const [copied, setCopied] = useState(false);
   const [justLinked, setJustLinked] = useState(false);
+  const [isTg, setIsTg] = useState(false);
+
+  useEffect(() => {
+    setIsTg(telegramWebApp.isInsideTelegram());
+  }, []);
 
   // Fetch token when opened and not linked
   useEffect(() => {
@@ -103,7 +109,14 @@ const TelegramLinkModal = ({ isOpen, onClose }) => {
   const isLinked = Boolean(user?.telegramId);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+      style={{
+        paddingTop: isTg
+          ? 'max(var(--tg-content-safe-area-top, 56px), env(safe-area-inset-top, 0px), 56px)'
+          : undefined,
+      }}
+    >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
