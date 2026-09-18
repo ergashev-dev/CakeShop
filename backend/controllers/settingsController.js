@@ -8,7 +8,34 @@ export const settingsController = {
   async getSettings(req, res) {
     try {
       const settings = (await Settings.findOne()) || (await Settings.create({}));
-      return res.json({ settings });
+      const user = req.user;
+      const isAdmin = user && ['admin', 'superadmin', 'super_admin'].includes(user.role);
+
+      // Create a sanitized copy if not admin
+      let responseSettings = settings.toJSON ? settings.toJSON() : { ...settings };
+      if (!isAdmin) {
+        if (responseSettings.paymentSettings) {
+          responseSettings.paymentSettings = {
+            ...responseSettings.paymentSettings,
+            click: {
+              ...(responseSettings.paymentSettings.click || {}),
+              secretKey: undefined,
+            },
+            payme: {
+              ...(responseSettings.paymentSettings.payme || {}),
+              secretKey: undefined,
+            },
+          };
+        }
+        if (responseSettings.aiSettings) {
+          responseSettings.aiSettings = {
+            ...responseSettings.aiSettings,
+            geminiApiKey: undefined,
+          };
+        }
+      }
+
+      return res.json({ settings: responseSettings });
     } catch (error) {
       console.error('Get settings error:', error);
       return res.status(500).json({ error: 'Sozlamalarni yuklashda xatolik.' });
@@ -31,6 +58,8 @@ export const settingsController = {
         contactTelegram,
         contactAddress,
         aiSettings,
+        paymentSettings,
+        maintenanceMode,
       } = req.body;
 
       let settings = await Settings.findOne();
@@ -51,6 +80,18 @@ export const settingsController = {
         settings.aiSettings = {
           ...(settings.aiSettings || {}),
           ...aiSettings,
+        };
+      }
+      if (paymentSettings && typeof paymentSettings === 'object') {
+        settings.paymentSettings = {
+          ...(settings.paymentSettings || {}),
+          ...paymentSettings,
+        };
+      }
+      if (maintenanceMode && typeof maintenanceMode === 'object') {
+        settings.maintenanceMode = {
+          ...(settings.maintenanceMode || {}),
+          ...maintenanceMode,
         };
       }
 

@@ -18,10 +18,13 @@ import {
   Check,
   Clock,
   Map,
+  Copy,
+  Star,
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { orderApi, promoApi } from '../../services/api';
+import { orderApi, promoApi, settingsApi, telegramApi } from '../../services/api';
+import telegramWebApp from '../../services/telegramWebApp';
 import { formatPrice } from '../../utils/formatters';
 import { handleImageError, DEFAULT_CAKE_IMAGE } from '../../utils/imageFallback';
 import PaymentModal from '../payment/PaymentModal';
@@ -49,6 +52,20 @@ const CartDrawer = ({ onAuthRequired }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [confirmedOrder, setConfirmedOrder] = useState(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentConfig, setPaymentConfig] = useState(null);
+  const [copiedCard, setCopiedCard] = useState(false);
+
+  // Load payment settings from backend
+  useEffect(() => {
+    settingsApi
+      .get()
+      .then((res) => {
+        if (res.data?.settings?.paymentSettings) {
+          setPaymentConfig(res.data.settings.paymentSettings);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Promo code states
   const [promoInput, setPromoInput] = useState('');
@@ -201,6 +218,32 @@ const CartDrawer = ({ onAuthRequired }) => {
       setPromoInput('');
       setStep('success');
       setIsPaymentModalOpen(false);
+
+      // TMA Haptic Success
+      telegramWebApp.haptic.notification('success');
+
+      // If Stars payment, trigger Telegram Stars invoice
+      if (orderPayload.payment_method === 'stars') {
+        const starRate = paymentConfig?.telegramStars?.rateUzsPerStar || 250;
+        const starsNeeded = Math.max(1, Math.round(grandTotal / starRate));
+        try {
+          const invRes = await telegramApi.createInvoice({
+            orderId: createdOrder.orderId,
+            amountStars: starsNeeded,
+            title: `Buyurtma #${createdOrder.orderId}`,
+            description: `Bol Tortlari xaridi uchun Telegram Stars to‘lovi`,
+          });
+          if (invRes.data?.invoiceLink) {
+            telegramWebApp.openInvoice(invRes.data.invoiceLink, (status) => {
+              if (status === 'paid') {
+                telegramWebApp.haptic.notification('success');
+              }
+            });
+          }
+        } catch (starsErr) {
+          console.warn('Stars invoice creation error:', starsErr);
+        }
+      }
     } catch (err) {
       console.error('Order placement error:', err);
       setErrorMessage(
@@ -235,9 +278,29 @@ const CartDrawer = ({ onAuthRequired }) => {
       return;
     }
 
-    // If online payment (card / payme / click) -> Open Payment Modal FIRST
-    if (formData.payment_method !== 'cash') {
+    telegramWebApp.haptic.impact('medium');
+
+    // If online automated gateway (payme / click) -> Open Payment Modal
+    if (formData.payment_method === 'payme' || formData.payment_method === 'click') {
       setIsPaymentModalOpen(true);
+      return;
+    }
+
+    // If Telegram Stars
+    if (formData.payment_method === 'stars') {
+      await processOrderCreation({
+        payment_method: 'stars',
+        payment_status: 'pending',
+      });
+      return;
+    }
+
+    // If Bank Card (P2P o‘tkazma)
+    if (formData.payment_method === 'card') {
+      await processOrderCreation({
+        payment_method: 'card',
+        payment_status: 'pending',
+      });
       return;
     }
 
@@ -629,34 +692,120 @@ const CartDrawer = ({ onAuthRequired }) => {
                   <label className="block text-xs font-semibold text-[#111827] dark:text-[#F3F4F6] mb-1.5">
                     {t('cart.payment_method', 'To‘lov usuli')}
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: 'cash', label: t('cart.cash', 'Naqd to‘lov'), sub: t('cart.cash_sub', 'Kuryerga') },
-                      { id: 'card', label: t('cart.card', 'Bank kartasi'), sub: 'Uzcard / Humo' },
-                      { id: 'payme', label: t('cart.payme', 'Payme'), sub: 'Ilova orqali' },
-                      { id: 'click', label: t('cart.click', 'Click'), sub: 'Ilova orqali' },
-                    ].map((method) => (
-                      <label
-                        key={method.id}
-                        className={`flex flex-col p-2.5 border rounded-xl cursor-pointer text-xs transition-all ${
-                          formData.payment_method === method.id
-                            ? 'border-[#2563EB] bg-[#EFF6FF] dark:bg-[#1E3A8A]/20 text-[#2563EB] font-bold shadow-subtle'
-                            : 'border-[#E5E7EB] dark:border-[#26282E] text-[#4B5563] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#1F2228]'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="payment_method"
-                          value={method.id}
-                          checked={formData.payment_method === method.id}
-                          onChange={handleInputChange}
-                          className="hidden"
-                        />
-                        <span className="font-semibold">{method.label}</span>
-                        <span className="text-[10px] opacity-75 font-normal">{method.sub}</span>
-                      </label>
-                    ))}
-                  </div>
+                  
+                  {(() => {
+                    const starRate = paymentConfig?.telegramStars?.rateUzsPerStar || 250;
+                    const starsNeeded = Math.max(1, Math.round(grandTotal / starRate));
+                    const methods = [];
+
+                    if (paymentConfig?.cash?.isEnabled !== false) {
+                      methods.push({ id: 'cash', label: t('cart.cash', 'Naqd to‘lov'), sub: t('cart.cash_sub', 'Kuryerga') });
+                    }
+                    if (paymentConfig?.bankCard?.isEnabled !== false) {
+                      methods.push({
+                        id: 'card',
+                        label: t('cart.card', 'Bank kartasi'),
+                        sub: paymentConfig?.bankCard?.bankName || 'Karta o‘tkazmasi',
+                      });
+                    }
+                    if (paymentConfig?.telegramStars?.isEnabled) {
+                      methods.push({
+                        id: 'stars',
+                        label: 'Telegram Stars',
+                        sub: `${starsNeeded} ⭐ XTR`,
+                      });
+                    }
+                    if (paymentConfig?.payme?.isEnabled) {
+                      methods.push({ id: 'payme', label: t('cart.payme', 'Payme'), sub: 'Ilova orqali' });
+                    }
+                    if (paymentConfig?.click?.isEnabled) {
+                      methods.push({ id: 'click', label: t('cart.click', 'Click'), sub: 'Ilova orqali' });
+                    }
+                    if (methods.length === 0) {
+                      methods.push({ id: 'cash', label: 'Naqd to‘lov', sub: 'Kuryerga' });
+                      methods.push({ id: 'card', label: 'Bank kartasi', sub: 'Karta o‘tkazmasi' });
+                    }
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          {methods.map((method) => (
+                            <label
+                              key={method.id}
+                              onClick={() => telegramWebApp.haptic.selection()}
+                              className={`flex flex-col p-2.5 border rounded-xl cursor-pointer text-xs transition-all ${
+                                formData.payment_method === method.id
+                                  ? 'border-[#2563EB] bg-[#EFF6FF] dark:bg-[#1E3A8A]/20 text-[#2563EB] font-bold shadow-subtle'
+                                  : 'border-[#E5E7EB] dark:border-[#26282E] text-[#4B5563] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#1F2228]'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="payment_method"
+                                value={method.id}
+                                checked={formData.payment_method === method.id}
+                                onChange={handleInputChange}
+                                className="hidden"
+                              />
+                              <span className="font-semibold">{method.label}</span>
+                              <span className="text-[10px] opacity-75 font-normal">{method.sub}</span>
+                            </label>
+                          ))}
+                        </div>
+
+                        {/* Bank Card P2P Details Box */}
+                        {formData.payment_method === 'card' && (
+                          <div className="mt-2.5 p-3 rounded-xl bg-[#EFF6FF] dark:bg-[#1E3A8A]/20 border border-[#BFDBFE] dark:border-[#1E3A8A] space-y-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-[#1E3A8A] dark:text-[#93C5FD]">
+                                {paymentConfig?.bankCard?.bankName || 'Bank kartasi (Uzcard / Humo)'}
+                              </span>
+                              <span className="text-[10px] text-[#2563EB] dark:text-[#60A5FA] font-medium">
+                                {paymentConfig?.bankCard?.cardHolder || 'Abdurashid Ergashev'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between bg-white dark:bg-[#16181D] px-3 py-2 rounded-lg border border-[#BFDBFE]/70 dark:border-[#26282E]">
+                              <span className="font-mono font-bold text-xs text-[#111827] dark:text-[#F3F4F6] tracking-wider">
+                                {paymentConfig?.bankCard?.cardNumber || '8600 1234 5678 9012'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(
+                                    (paymentConfig?.bankCard?.cardNumber || '8600 1234 5678 9012').replace(/\s/g, '')
+                                  );
+                                  setCopiedCard(true);
+                                  telegramWebApp.haptic.notification('success');
+                                  setTimeout(() => setCopiedCard(false), 2000);
+                                }}
+                                className="px-2 py-1 rounded-md bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                              >
+                                {copiedCard ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                <span>{copiedCard ? 'Nusxalandi' : 'Nusxa olish'}</span>
+                              </button>
+                            </div>
+                            <p className="text-[10.5px] text-[#1E3A8A]/90 dark:text-[#93C5FD]/90 leading-tight">
+                              {paymentConfig?.bankCard?.instructions ||
+                                "To‘lov qilgach, chekni Telegram orqali adminga yuboring yoki buyurtma izohida qoldiring."}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Telegram Stars Box */}
+                        {formData.payment_method === 'stars' && (
+                          <div className="mt-2.5 p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                            <div className="flex items-center gap-1.5 font-bold">
+                              <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                              <span>Telegram Stars orqali to‘lov</span>
+                            </div>
+                            <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+                              Jami: <b>{starsNeeded} ⭐ Stars</b> (1 ⭐ ≈ {starRate} so‘m). «Buyurtma berish» tugmasi bosilganda to‘lov oynasi ochiladi.
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
               </div>

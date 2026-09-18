@@ -229,6 +229,8 @@ const migrations = [
   "ALTER TABLE orders ADD COLUMN location_lat REAL DEFAULT 0",
   "ALTER TABLE orders ADD COLUMN location_lng REAL DEFAULT 0",
   "ALTER TABLE settings ADD COLUMN aiSettings_json TEXT DEFAULT '{}'",
+  "ALTER TABLE settings ADD COLUMN paymentSettings_json TEXT DEFAULT '{}'",
+  "ALTER TABLE settings ADD COLUMN maintenanceMode_json TEXT DEFAULT '{}'",
 ];
 
 for (const sql of migrations) {
@@ -349,6 +351,45 @@ function wrapDoc(tableName, row) {
     };
   }
 
+  if (doc.paymentSettings_json) {
+    try {
+      doc.paymentSettings = JSON.parse(doc.paymentSettings_json);
+    } catch (e) {
+      doc.paymentSettings = {};
+    }
+  } else if (!doc.paymentSettings && tableName === 'settings') {
+    doc.paymentSettings = {
+      click: { isEnabled: false, merchantId: '', serviceId: '', secretKey: '', isTestMode: true },
+      payme: { isEnabled: false, merchantId: '', secretKey: '', isTestMode: true },
+      bankCard: {
+        isEnabled: true,
+        cardNumber: '8600 1234 5678 9012',
+        cardHolder: 'Abdurashid Ergashev',
+        bankName: 'TBC Bank',
+        instructions: "To'lov qilgach, chekni Telegram orqali yuboring yoki izohda qoldiring.",
+      },
+      telegramStars: { isEnabled: true, rateUzsPerStar: 250 },
+      cash: { isEnabled: true },
+    };
+  }
+
+  if (doc.maintenanceMode_json) {
+    try {
+      doc.maintenanceMode = JSON.parse(doc.maintenanceMode_json);
+    } catch (e) {
+      doc.maintenanceMode = { isEnabled: false };
+    }
+  } else if (!doc.maintenanceMode && tableName === 'settings') {
+    doc.maintenanceMode = {
+      isEnabled: false,
+      title: 'Texnik sozlash ishlari olib borilmoqda',
+      message: 'Saytimizni yanada yaxshilash va tezlashtirish maqsadida qisqa muddatli texnik sozlash olib borilmoqda. Tez orada qaytamiz!',
+      estimatedEndTime: 'Tez orada',
+      contactPhone: '+998 (90) 123-45-67',
+      contactTelegram: '@boltortlari_admin',
+    };
+  }
+
   if (doc.expiresAt) doc.expiresAt = new Date(doc.expiresAt);
   if (doc.resetPasswordExpire) doc.resetPasswordExpire = new Date(doc.resetPasswordExpire);
   if (doc.createdAt) doc.createdAt = new Date(doc.createdAt);
@@ -359,7 +400,18 @@ function wrapDoc(tableName, row) {
     const fields = [];
     const values = [];
     for (const key of Object.keys(this)) {
-      if (['save', 'toJSON', 'items', 'status_history', 'addresses', 'adminReply', 'customCakeConfig', 'aiSettings'].includes(key)) continue;
+      if ([
+        'save',
+        'toJSON',
+        'items',
+        'status_history',
+        'addresses',
+        'adminReply',
+        'customCakeConfig',
+        'aiSettings',
+        'paymentSettings',
+        'maintenanceMode',
+      ].includes(key)) continue;
 
       let val = this[key];
       if (typeof val === 'boolean') val = val ? 1 : 0;
@@ -391,6 +443,14 @@ function wrapDoc(tableName, row) {
     if (this.aiSettings) {
       fields.push(`aiSettings_json = ?`);
       values.push(JSON.stringify(this.aiSettings));
+    }
+    if (this.paymentSettings) {
+      fields.push(`paymentSettings_json = ?`);
+      values.push(JSON.stringify(this.paymentSettings));
+    }
+    if (this.maintenanceMode) {
+      fields.push(`maintenanceMode_json = ?`);
+      values.push(JSON.stringify(this.maintenanceMode));
     }
 
     values.push(this._id);

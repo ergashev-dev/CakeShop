@@ -38,6 +38,49 @@ const settingsSchema = new mongoose.Schema(
         ],
       },
     },
+    paymentSettings: {
+      click: {
+        isEnabled: { type: Boolean, default: false },
+        merchantId: { type: String, default: '' },
+        serviceId: { type: String, default: '' },
+        secretKey: { type: String, default: '' },
+        isTestMode: { type: Boolean, default: true },
+      },
+      payme: {
+        isEnabled: { type: Boolean, default: false },
+        merchantId: { type: String, default: '' },
+        secretKey: { type: String, default: '' },
+        isTestMode: { type: Boolean, default: true },
+      },
+      bankCard: {
+        isEnabled: { type: Boolean, default: true },
+        cardNumber: { type: String, default: '8600 1234 5678 9012' },
+        cardHolder: { type: String, default: 'Abdurashid Ergashev' },
+        bankName: { type: String, default: 'TBC Bank' },
+        instructions: {
+          type: String,
+          default: "To'lov qilgach, chekni Telegram orqali yuboring yoki buyurtma izohida qoldiring.",
+        },
+      },
+      telegramStars: {
+        isEnabled: { type: Boolean, default: true },
+        rateUzsPerStar: { type: Number, default: 250 },
+      },
+      cash: {
+        isEnabled: { type: Boolean, default: true },
+      },
+    },
+    maintenanceMode: {
+      isEnabled: { type: Boolean, default: false },
+      title: { type: String, default: 'Texnik sozlash ishlari olib borilmoqda' },
+      message: {
+        type: String,
+        default: 'Saytimizni yanada yaxshilash va tezlashtirish maqsadida qisqa muddatli texnik sozlash olib borilmoqda. Tez orada qaytamiz!',
+      },
+      estimatedEndTime: { type: String, default: 'Tez orada' },
+      contactPhone: { type: String, default: '+998 (90) 123-45-67' },
+      contactTelegram: { type: String, default: '@boltortlari_admin' },
+    },
   },
   { timestamps: true }
 );
@@ -82,6 +125,29 @@ class SettingsProxy {
       ],
     };
 
+    const defaultPaymentSettings = {
+      click: { isEnabled: false, merchantId: '', serviceId: '', secretKey: '', isTestMode: true },
+      payme: { isEnabled: false, merchantId: '', secretKey: '', isTestMode: true },
+      bankCard: {
+        isEnabled: true,
+        cardNumber: '8600 1234 5678 9012',
+        cardHolder: 'Abdurashid Ergashev',
+        bankName: 'TBC Bank',
+        instructions: "To'lov qilgach, chekni Telegram orqali yuboring yoki buyurtma izohida qoldiring.",
+      },
+      telegramStars: { isEnabled: true, rateUzsPerStar: 250 },
+      cash: { isEnabled: true },
+    };
+
+    const defaultMaintenanceMode = {
+      isEnabled: false,
+      title: 'Texnik sozlash ishlari olib borilmoqda',
+      message: 'Saytimizni yanada yaxshilash va tezlashtirish maqsadida qisqa muddatli texnik sozlash olib borilmoqda. Tez orada qaytamiz!',
+      estimatedEndTime: 'Tez orada',
+      contactPhone: '+998 (90) 123-45-67',
+      contactTelegram: '@boltortlari_admin',
+    };
+
     const doc = {
       _id: id,
       isStoreOpen: data.isStoreOpen !== false ? 1 : 0,
@@ -95,12 +161,14 @@ class SettingsProxy {
       contactInstagram: data.contactInstagram || 'boltortlari_uz',
       contactAddress: data.contactAddress || 'Toshkent sh., Navoiy ko‘chasi 14',
       aiSettings_json: JSON.stringify(data.aiSettings || defaultAiSettings),
+      paymentSettings_json: JSON.stringify(data.paymentSettings || defaultPaymentSettings),
+      maintenanceMode_json: JSON.stringify(data.maintenanceMode || defaultMaintenanceMode),
       createdAt: new Date().toISOString(),
     };
 
     sqlite.prepare(`
-      INSERT INTO settings (_id, isStoreOpen, cashbackPercent, deliveryFee, deliveryFeeOutside, freeDeliveryThreshold, workingHours, contactPhone, contactTelegram, contactInstagram, contactAddress, aiSettings_json, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO settings (_id, isStoreOpen, cashbackPercent, deliveryFee, deliveryFeeOutside, freeDeliveryThreshold, workingHours, contactPhone, contactTelegram, contactInstagram, contactAddress, aiSettings_json, paymentSettings_json, maintenanceMode_json, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       doc._id,
       doc.isStoreOpen,
@@ -114,6 +182,8 @@ class SettingsProxy {
       doc.contactInstagram,
       doc.contactAddress,
       doc.aiSettings_json,
+      doc.paymentSettings_json,
+      doc.maintenanceMode_json,
       doc.createdAt
     );
 

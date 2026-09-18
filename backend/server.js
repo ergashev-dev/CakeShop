@@ -35,6 +35,7 @@ import promoRoutes from './routes/promoRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import telegramRoutes from './routes/telegramRoutes.js';
 
 // Connect to Database
 connectMongoDB();
@@ -92,6 +93,7 @@ app.use('/api/promos', promoRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {

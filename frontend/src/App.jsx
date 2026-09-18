@@ -19,9 +19,12 @@ import CookieConsentBanner from './components/common/CookieConsentBanner';
 import PermissionsModal from './components/common/PermissionsModal';
 import OfflineState from './components/states/OfflineState';
 import SessionExpiredModal from './components/states/SessionExpiredModal';
+import MaintenanceState from './components/states/MaintenanceState';
 import MiraFloatingButton from './components/mira/MiraFloatingButton';
 import MiraChatModal from './components/mira/MiraChatModal';
 import miraApi from './services/mira/miraApi';
+import { settingsApi, telegramApi } from './services/api';
+import telegramWebApp from './services/telegramWebApp';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ScrollToTop from './utils/ScrollToTop';
 import AdminRoute from './routes/AdminRoute';
@@ -33,11 +36,12 @@ import socketClient from './services/socket';
 
 function AppContent() {
   const { toast } = useToast();
-  const { loginWithToken } = useAuth();
+  const { loginWithToken, user } = useAuth();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isTelegramOpen, setIsTelegramOpen] = useState(false);
   const [isMiraOpen, setIsMiraOpen] = useState(false);
+  const [storeSettings, setStoreSettings] = useState(null);
   const [miraSettings, setMiraSettings] = useState({
     isEnabled: true,
     websiteQuestions: true,
@@ -50,14 +54,46 @@ function AppContent() {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
-  // Load Mira AI Settings
+  // Initialize Telegram Mini Apps (TMA 2.0) & Auto-login
+  useEffect(() => {
+    telegramWebApp.init();
+
+    if (telegramWebApp.isInsideTelegram() && !user) {
+      const initData = telegramWebApp.getInitData();
+      if (initData) {
+        telegramApi
+          .webappAuth(initData)
+          .then((res) => {
+            if (res.data?.token) {
+              loginWithToken(res.data.token).catch(() => {});
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [user, loginWithToken]);
+
+  // Load Store Settings & Mira AI Settings
   useEffect(() => {
     let mounted = true;
-    miraApi.getSettings().then((settings) => {
-      if (mounted && settings) {
-        setMiraSettings(settings);
-      }
-    }).catch(() => {});
+    settingsApi
+      .get()
+      .then((res) => {
+        if (mounted && res.data?.settings) {
+          setStoreSettings(res.data.settings);
+        }
+      })
+      .catch(() => {});
+
+    miraApi
+      .getSettings()
+      .then((settings) => {
+        if (mounted && settings) {
+          setMiraSettings(settings);
+        }
+      })
+      .catch(() => {});
+
     return () => {
       mounted = false;
     };
@@ -117,6 +153,18 @@ function AppContent() {
       }
     };
   }, [toast]);
+
+  // Maintenance Mode Guard (Admins and Login/Admin routes are bypassed)
+  const isMaintenanceActive = storeSettings?.maintenanceMode?.isEnabled;
+  const isAdminUser = user && ['superadmin', 'super_admin', 'admin'].includes(user.role);
+  const isBypassPath =
+    location.pathname.startsWith('/admin') ||
+    location.pathname === '/login' ||
+    location.pathname === '/register';
+
+  if (isMaintenanceActive && !isAdminUser && !isBypassPath) {
+    return <MaintenanceState maintenanceMode={storeSettings.maintenanceMode} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] dark:bg-[#0F1012] text-[#17181A] dark:text-[#F3F4F6] transition-colors duration-200 flex flex-col selection:bg-[#2563EB] selection:text-white">

@@ -6,6 +6,7 @@ import Cake from '../models/Cake.js';
 import Category from '../models/Category.js';
 import Settings from '../models/Settings.js';
 import { socketService } from './socketService.js';
+import { aiService } from './aiService.js';
 
 // Safe helper to find order by orderId or ObjectId
 const findOrderSafely = (id) => {
@@ -709,6 +710,85 @@ class TelegramBotService {
         ctx.answerCbQuery('Xatolik.');
       }
     });
+
+    // 9. Telegram Stars Payment (pre_checkout_query & successful_payment)
+    this.bot.on('pre_checkout_query', async (ctx) => {
+      try {
+        await ctx.answerPreCheckoutQuery(true);
+      } catch (err) {
+        console.error('pre_checkout_query error:', err.message);
+      }
+    });
+
+    this.bot.on('successful_payment', async (ctx) => {
+      try {
+        const payment = ctx.message.successful_payment;
+        const orderId = payment.invoice_payload;
+        console.log('⭐ Stars payment received for order:', orderId, payment.total_amount, 'XTR');
+        if (orderId) {
+          const order = await findOrderSafely(orderId);
+          if (order) {
+            order.payment_status = 'paid';
+            order.status = 'confirmed';
+            await order.save();
+            await this.notifyAdminsNewOrder(order);
+            await this.notifyCustomerOrderStatus(order);
+          }
+        }
+        await ctx.reply(
+          `🎉 <b>To‘lovingiz qabul qilindi! (${payment.total_amount} ⭐)</b>\n\n` +
+            `Buyurtmangiz to‘landi va qabul qilindi. Tez orada yetkazib beramiz!`,
+          {
+            parse_mode: 'HTML',
+            ...Markup.inlineKeyboard([
+              [Markup.button.webApp('📦 Buyurtmani kuzatish', this.getWebAppUrl())],
+            ]),
+          }
+        );
+      } catch (err) {
+        console.error('successful_payment error:', err.message);
+      }
+    });
+
+    // 10. Telegram Business updates
+    this.bot.on('business_connection', (ctx) => {
+      console.log('💼 Telegram Business connection updated:', ctx.businessConnection?.id);
+    });
+    this.bot.on('business_message', async (ctx) => {
+      try {
+        const msg = ctx.businessMessage;
+        if (msg?.text) {
+          console.log('💼 Telegram Business message received:', msg.text);
+        }
+      } catch (e) {}
+    });
+
+    // 11. Mira AI Assistant Integration for freeform text questions
+    this.bot.on('text', async (ctx) => {
+      const text = ctx.message.text.trim();
+      if (text.startsWith('/')) return;
+      if (['📦 Buyurtmalarim', 'ℹ️ Biz haqimizda & Aloqa', '⚙️ Admin Paneli'].includes(text)) return;
+
+      try {
+        await ctx.sendChatAction('typing');
+        const aiResult = await aiService.processMessage(text, 'uz');
+        let replyText = `🤖 <b>Mira AI:</b>\n\n${aiResult.answer}`;
+        const buttons = [];
+        if (aiResult.products && aiResult.products.length > 0) {
+          replyText += `\n\n🍰 <b>Tavsiya etilgan tortlar:</b>\n`;
+          for (const p of aiResult.products.slice(0, 3)) {
+            replyText += `• <b>${p.name}</b> — ${(p.price || 0).toLocaleString()} so‘m\n`;
+          }
+          buttons.push([Markup.button.webApp('🛍️ Do‘konda buyurtma berish', this.getWebAppUrl())]);
+        }
+        await ctx.reply(replyText, {
+          parse_mode: 'HTML',
+          ...(buttons.length > 0 ? Markup.inlineKeyboard(buttons) : {}),
+        });
+      } catch (aiErr) {
+        console.error('Telegram Mira AI fallback error:', aiErr.message);
+      }
+    });
   }
 
   // Display User Orders
@@ -1023,6 +1103,23 @@ class TelegramBotService {
     } catch (err) {
       console.error('Xaridorga Telegram xabari yuborishda xatolik:', err.message);
     }
+  }
+
+  /**
+   * Telegram Stars: Create invoice link for Stars payment
+   */
+  async createStarsInvoiceLink({ title, description, payload, starsAmount }) {
+    if (!this.bot) throw new Error('Telegram bot faol emas');
+    const amount = Math.max(1, Math.round(Number(starsAmount) || 1));
+    const invoiceLink = await this.bot.telegram.createInvoiceLink({
+      title: title || 'Bol Tortlari Buyurtmasi',
+      description: description || 'Premium tort xaridi uchun Telegram Stars to‘lovi',
+      payload: String(payload || 'order_stars'),
+      currency: 'XTR',
+      prices: [{ label: title || 'Bol Tortlari', amount }],
+      provider_token: '', // Required empty string for Telegram Stars
+    });
+    return invoiceLink;
   }
 }
 

@@ -144,6 +144,27 @@ const AdminPage = () => {
       generalAiQuestions: true,
       imageUnderstanding: true,
     },
+    paymentSettings: {
+      click: { isEnabled: false, merchantId: '', serviceId: '', secretKey: '', isTestMode: true },
+      payme: { isEnabled: false, merchantId: '', secretKey: '', isTestMode: true },
+      bankCard: {
+        isEnabled: true,
+        cardNumber: '8600 1234 5678 9012',
+        cardHolder: 'Abdurashid Ergashev',
+        bankName: 'TBC Bank',
+        instructions: "To'lov qilgach, chekni Telegram orqali yuboring yoki buyurtma izohida qoldiring.",
+      },
+      telegramStars: { isEnabled: true, rateUzsPerStar: 250 },
+      cash: { isEnabled: true },
+    },
+    maintenanceMode: {
+      isEnabled: false,
+      title: 'Texnik sozlash ishlari olib borilmoqda',
+      message: 'Saytimizni yanada yaxshilash va tezlashtirish maqsadida qisqa muddatli texnik sozlash olib borilmoqda. Tez orada qaytamiz!',
+      estimatedEndTime: 'Tez orada',
+      contactPhone: '+998 (90) 123-45-67',
+      contactTelegram: '@boltortlari_admin',
+    },
   });
 
   const [aiStats, setAiStats] = useState(null);
@@ -2204,6 +2225,394 @@ const AdminPage = () => {
                     onChange={(e) => setSettings((p) => ({ ...p, contactAddress: e.target.value }))}
                     className="w-full px-3.5 py-2 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2024] text-xs outline-none"
                   />
+                </div>
+
+                {/* 🛠️ SAYT TEXNIK REJIMI (MAINTENANCE MODE) */}
+                <div className="p-4 sm:p-5 rounded-2xl border border-amber-200/80 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/10 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                        <span>🛠️ Sayt Texnik Rejimi (Maintenance Mode)</span>
+                      </h4>
+                      <p className="text-xs text-amber-700 dark:text-amber-300/80 mt-0.5">
+                        Rejim yoqilganda oddiy tashrifchilarga xushmuomala texnik ishlar sahifasi chiqadi. Adminlar va boshqaruv bo‘limi bloklanmaydi.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSettings((p) => ({
+                          ...p,
+                          maintenanceMode: {
+                            ...(p.maintenanceMode || {}),
+                            isEnabled: !p.maintenanceMode?.isEnabled,
+                          },
+                        }))
+                      }
+                      className="cursor-pointer shrink-0"
+                    >
+                      {settings.maintenanceMode?.isEnabled ? (
+                        <ToggleRight className="w-8 h-8 text-amber-600" />
+                      ) : (
+                        <ToggleLeft className="w-8 h-8 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
+
+                  {settings.maintenanceMode?.isEnabled && (
+                    <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/40 space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-[#6B7280] block mb-1">Texnik xabar sarlavhasi</label>
+                        <input
+                          type="text"
+                          value={settings.maintenanceMode?.title || ''}
+                          onChange={(e) =>
+                            setSettings((p) => ({
+                              ...p,
+                              maintenanceMode: { ...(p.maintenanceMode || {}), title: e.target.value },
+                            }))
+                          }
+                          placeholder="Texnik sozlash ishlari olib borilmoqda"
+                          className="w-full px-3.5 py-2 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-white dark:bg-[#1E2024] text-xs outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-[#6B7280] block mb-1">Mijozlarga ko‘rinadigan tushuntirish xabari</label>
+                        <textarea
+                          rows={2}
+                          value={settings.maintenanceMode?.message || ''}
+                          onChange={(e) =>
+                            setSettings((p) => ({
+                              ...p,
+                              maintenanceMode: { ...(p.maintenanceMode || {}), message: e.target.value },
+                            }))
+                          }
+                          placeholder="Saytimizni yangilash va sifatini oshirish maqsadida qisqa muddatli texnik sozlash olib borilmoqda..."
+                          className="w-full px-3.5 py-2 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-white dark:bg-[#1E2024] text-xs outline-none resize-none"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-[#6B7280] block mb-1">Taxminiy tayyor bo‘lish vaqti</label>
+                          <input
+                            type="text"
+                            value={settings.maintenanceMode?.estimatedEndTime || ''}
+                            onChange={(e) =>
+                              setSettings((p) => ({
+                                ...p,
+                                maintenanceMode: { ...(p.maintenanceMode || {}), estimatedEndTime: e.target.value },
+                              }))
+                            }
+                            placeholder="15-30 daqiqa yoki 16:00 gacha"
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-white dark:bg-[#1E2024] text-xs outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-[#6B7280] block mb-1">Aloqa telefoni</label>
+                          <input
+                            type="text"
+                            value={settings.maintenanceMode?.contactPhone || ''}
+                            onChange={(e) =>
+                              setSettings((p) => ({
+                                ...p,
+                                maintenanceMode: { ...(p.maintenanceMode || {}), contactPhone: e.target.value },
+                              }))
+                            }
+                            placeholder="+998 (90) 123-45-67"
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-white dark:bg-[#1E2024] text-xs outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 💳 KARTA VA TO‘LOV TIZIMLARI SOZLAMALARI */}
+                <div className="p-4 sm:p-5 rounded-2xl border border-blue-200/80 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/10 space-y-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
+                      <span>💳 Karta va To‘lov Tizimlari Sozlamalari</span>
+                    </h4>
+                    <p className="text-xs text-blue-700 dark:text-blue-300/80 mt-0.5">
+                      Hozirda Payme va Click rasmiy API tayyor bo‘lmaguncha ularni o‘chirib qo‘yishingiz mumkin. Karta raqamingizni kiritib qo‘ysangiz, mijozlar P2P o‘tkazma orqali to‘lov qiladilar.
+                    </p>
+                  </div>
+
+                  {/* 1. Bank Kartasi (P2P o‘tkazma) */}
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-[#16181D] border border-blue-100 dark:border-[#26282E] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-[#111827] dark:text-[#F3F4F6] block">
+                          Bank Kartasi (P2P o‘tkazma orqali to‘lov)
+                        </span>
+                        <span className="text-[11px] text-[#6B7280]">
+                          Mijoz savatda ushbu karta raqamini nusxa olib, to‘lov chekini jo‘natadi
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSettings((p) => ({
+                            ...p,
+                            paymentSettings: {
+                              ...(p.paymentSettings || {}),
+                              bankCard: {
+                                ...(p.paymentSettings?.bankCard || {}),
+                                isEnabled: !p.paymentSettings?.bankCard?.isEnabled,
+                              },
+                            },
+                          }))
+                        }
+                        className="cursor-pointer"
+                      >
+                        {settings.paymentSettings?.bankCard?.isEnabled !== false ? (
+                          <ToggleRight className="w-8 h-8 text-blue-600" />
+                        ) : (
+                          <ToggleLeft className="w-8 h-8 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+
+                    {settings.paymentSettings?.bankCard?.isEnabled !== false && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+                        <div>
+                          <label className="text-[11px] font-bold text-[#6B7280] block mb-1">Karta raqami</label>
+                          <input
+                            type="text"
+                            value={settings.paymentSettings?.bankCard?.cardNumber || ''}
+                            onChange={(e) =>
+                              setSettings((p) => ({
+                                ...p,
+                                paymentSettings: {
+                                  ...(p.paymentSettings || {}),
+                                  bankCard: { ...(p.paymentSettings?.bankCard || {}), cardNumber: e.target.value },
+                                },
+                              }))
+                            }
+                            placeholder="8600 1234 5678 9012"
+                            className="w-full px-3 py-1.5 rounded-lg border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2024] font-mono text-xs outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-[#6B7280] block mb-1">Karta egasi ismi</label>
+                          <input
+                            type="text"
+                            value={settings.paymentSettings?.bankCard?.cardHolder || ''}
+                            onChange={(e) =>
+                              setSettings((p) => ({
+                                ...p,
+                                paymentSettings: {
+                                  ...(p.paymentSettings || {}),
+                                  bankCard: { ...(p.paymentSettings?.bankCard || {}), cardHolder: e.target.value },
+                                },
+                              }))
+                            }
+                            placeholder="Abdurashid Ergashev"
+                            className="w-full px-3 py-1.5 rounded-lg border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2024] text-xs outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-[#6B7280] block mb-1">Bank nomi</label>
+                          <input
+                            type="text"
+                            value={settings.paymentSettings?.bankCard?.bankName || ''}
+                            onChange={(e) =>
+                              setSettings((p) => ({
+                                ...p,
+                                paymentSettings: {
+                                  ...(p.paymentSettings || {}),
+                                  bankCard: { ...(p.paymentSettings?.bankCard || {}), bankName: e.target.value },
+                                },
+                              }))
+                            }
+                            placeholder="TBC Bank / Kapitalbank"
+                            className="w-full px-3 py-1.5 rounded-lg border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2024] text-xs outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Telegram Stars (XTR) */}
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-[#16181D] border border-blue-100 dark:border-[#26282E] flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-[#111827] dark:text-[#F3F4F6] block">
+                        ⭐ Telegram Stars (XTR to‘lov)
+                      </span>
+                      <span className="text-[11px] text-[#6B7280]">
+                        Telegram Web App ichida Stars orqali to‘g‘ridan-to‘g‘ri to‘lov
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-gray-500">1 Star:</span>
+                        <input
+                          type="number"
+                          value={settings.paymentSettings?.telegramStars?.rateUzsPerStar || 250}
+                          onChange={(e) =>
+                            setSettings((p) => ({
+                              ...p,
+                              paymentSettings: {
+                                ...(p.paymentSettings || {}),
+                                telegramStars: {
+                                  ...(p.paymentSettings?.telegramStars || {}),
+                                  rateUzsPerStar: Number(e.target.value),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-16 px-2 py-1 text-center rounded border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2024] text-xs font-bold"
+                        />
+                        <span className="text-[10px] text-gray-500">so‘m</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSettings((p) => ({
+                            ...p,
+                            paymentSettings: {
+                              ...(p.paymentSettings || {}),
+                              telegramStars: {
+                                ...(p.paymentSettings?.telegramStars || {}),
+                                isEnabled: !p.paymentSettings?.telegramStars?.isEnabled,
+                              },
+                            },
+                          }))
+                        }
+                        className="cursor-pointer"
+                      >
+                        {settings.paymentSettings?.telegramStars?.isEnabled !== false ? (
+                          <ToggleRight className="w-8 h-8 text-amber-500" />
+                        ) : (
+                          <ToggleLeft className="w-8 h-8 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. Click & Payme Gateway toggles */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Click */}
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-[#16181D] border border-blue-100 dark:border-[#26282E] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-[#111827] dark:text-[#F3F4F6] block">Click API</span>
+                          <span className="text-[10px] text-gray-500">
+                            {settings.paymentSettings?.click?.isEnabled ? '🟢 Yoqilgan' : '⚪ O‘chirilgan (Hozircha)'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSettings((p) => ({
+                              ...p,
+                              paymentSettings: {
+                                ...(p.paymentSettings || {}),
+                                click: {
+                                  ...(p.paymentSettings?.click || {}),
+                                  isEnabled: !p.paymentSettings?.click?.isEnabled,
+                                },
+                              },
+                            }))
+                          }
+                          className="cursor-pointer"
+                        >
+                          {settings.paymentSettings?.click?.isEnabled ? (
+                            <ToggleRight className="w-8 h-8 text-blue-600" />
+                          ) : (
+                            <ToggleLeft className="w-8 h-8 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
+                      {settings.paymentSettings?.click?.isEnabled && (
+                        <div className="space-y-1.5 pt-1 text-[11px]">
+                          <input
+                            type="text"
+                            placeholder="Service ID"
+                            value={settings.paymentSettings?.click?.serviceId || ''}
+                            onChange={(e) =>
+                              setSettings((p) => ({
+                                ...p,
+                                paymentSettings: {
+                                  ...(p.paymentSettings || {}),
+                                  click: { ...(p.paymentSettings?.click || {}), serviceId: e.target.value },
+                                },
+                              }))
+                            }
+                            className="w-full px-2.5 py-1 rounded border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2024] text-xs outline-none"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Merchant ID"
+                            value={settings.paymentSettings?.click?.merchantId || ''}
+                            onChange={(e) =>
+                              setSettings((p) => ({
+                                ...p,
+                                paymentSettings: {
+                                  ...(p.paymentSettings || {}),
+                                  click: { ...(p.paymentSettings?.click || {}), merchantId: e.target.value },
+                                },
+                              }))
+                            }
+                            className="w-full px-2.5 py-1 rounded border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2024] text-xs outline-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Payme */}
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-[#16181D] border border-blue-100 dark:border-[#26282E] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-[#111827] dark:text-[#F3F4F6] block">Payme API</span>
+                          <span className="text-[10px] text-gray-500">
+                            {settings.paymentSettings?.payme?.isEnabled ? '🟢 Yoqilgan' : '⚪ O‘chirilgan (Hozircha)'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSettings((p) => ({
+                              ...p,
+                              paymentSettings: {
+                                ...(p.paymentSettings || {}),
+                                payme: {
+                                  ...(p.paymentSettings?.payme || {}),
+                                  isEnabled: !p.paymentSettings?.payme?.isEnabled,
+                                },
+                              },
+                            }))
+                          }
+                          className="cursor-pointer"
+                        >
+                          {settings.paymentSettings?.payme?.isEnabled ? (
+                            <ToggleRight className="w-8 h-8 text-emerald-600" />
+                          ) : (
+                            <ToggleLeft className="w-8 h-8 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
+                      {settings.paymentSettings?.payme?.isEnabled && (
+                        <div className="space-y-1.5 pt-1 text-[11px]">
+                          <input
+                            type="text"
+                            placeholder="Payme Merchant ID"
+                            value={settings.paymentSettings?.payme?.merchantId || ''}
+                            onChange={(e) =>
+                              setSettings((p) => ({
+                                ...p,
+                                paymentSettings: {
+                                  ...(p.paymentSettings || {}),
+                                  payme: { ...(p.paymentSettings?.payme || {}), merchantId: e.target.value },
+                                },
+                              }))
+                            }
+                            className="w-full px-2.5 py-1 rounded border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2024] text-xs outline-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <Button variant="primary" type="submit" loading={actionLoading} className="w-full mt-2">

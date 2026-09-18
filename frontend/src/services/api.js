@@ -150,4 +150,9 @@ export const paymentApi = {
   processCardPayment: (data) => api.post('/payment/card', data),
 };
 
+export const telegramApi = {
+  webappAuth: (initData) => api.post('/telegram/webapp-auth', { initData }),
+  createInvoice: (data) => api.post('/telegram/create-invoice', data),
+};
+
 export default api;
