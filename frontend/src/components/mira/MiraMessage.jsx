@@ -1,5 +1,5 @@
-import React from 'react';
-import { Sparkles, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, User, Volume2, VolumeX } from 'lucide-react';
 import MiraProductCard from './MiraProductCard';
 import MiraOrderStatus from './MiraOrderStatus';
 import MiraConfirmationCard from './MiraConfirmationCard';
@@ -14,12 +14,43 @@ export const MiraMessage = ({
 }) => {
   if (!message) return null;
   const isUser = message.role === 'user';
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Play text to speech
+  const handleSpeak = () => {
+    if (!('speechSynthesis' in window)) return;
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    // Clean markdown ** symbols for smooth speech
+    const cleanText = (message.text || '').replace(/\*\*/g, '').replace(/#\w+/g, '');
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+
+    // Prefer Uzbek or Russian or system voice
+    const voices = window.speechSynthesis.getVoices();
+    const uzOrRuVoice = voices.find(v => v.lang.startsWith('uz') || v.lang.startsWith('ru'));
+    if (uzOrRuVoice) {
+      utterance.voice = uzOrRuVoice;
+    }
+    utterance.rate = 1.0;
+    utterance.pitch = 1.05;
+
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
 
   // Format simple markdown: **bold** and linebreaks
   const renderFormattedText = (text = '') => {
     const lines = text.split('\n');
     return lines.map((line, lIdx) => {
-      // Split by **text**
       const parts = line.split(/(\*\*[^*]+\*\*)/g);
       return (
         <span key={lIdx} className="block min-h-[1.1rem]">
@@ -52,7 +83,7 @@ export const MiraMessage = ({
             : 'bg-gradient-to-tr from-[#2563EB] to-indigo-500'
         }`}
       >
-        {isUser ? <User className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+        {isUser ? <User className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
       </div>
 
       {/* Bubble Content */}
@@ -70,14 +101,38 @@ export const MiraMessage = ({
 
         {/* Text Message Bubble */}
         {message.text && (
-          <div
-            className={`px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed shadow-xs ${
-              isUser
-                ? 'bg-[#2563EB] text-white rounded-tr-xs'
-                : 'bg-[#F3F4F6] dark:bg-[#1E2026] text-[#111827] dark:text-[#F3F4F6] rounded-tl-xs'
-            }`}
-          >
-            {renderFormattedText(message.text)}
+          <div className="relative group">
+            <div
+              className={`px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed shadow-xs ${
+                isUser
+                  ? 'bg-[#2563EB] text-white rounded-tr-xs'
+                  : 'bg-[#F3F4F6] dark:bg-[#1E2026] text-[#111827] dark:text-[#F3F4F6] rounded-tl-xs'
+              }`}
+            >
+              {renderFormattedText(message.text)}
+            </div>
+
+            {/* TTS Speaker icon on assistant messages */}
+            {!isUser && (
+              <button
+                type="button"
+                onClick={handleSpeak}
+                className="mt-1 ml-1 text-stone-400 hover:text-[#2563EB] dark:hover:text-amber-400 transition-colors cursor-pointer inline-flex items-center gap-1 text-[10px]"
+                title={isSpeaking ? "Ovozni to'xtatish" : "Ovoz chiqarib o'qish"}
+              >
+                {isSpeaking ? (
+                  <>
+                    <VolumeX className="w-3 h-3 text-red-500 animate-pulse" />
+                    <span className="text-red-500 font-semibold">To‘xtatish</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="w-3 h-3" />
+                    <span>Eshitish</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         )}
 

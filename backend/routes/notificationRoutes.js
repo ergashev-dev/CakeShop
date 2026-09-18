@@ -7,6 +7,7 @@ const router = Router();
 
 router.get('/', authMiddleware, notificationController.getNotifications);
 router.put('/:id/read', authMiddleware, notificationController.markAsRead);
+router.delete('/:id', authMiddleware, notificationController.deleteNotification);
 router.post('/broadcast', authMiddleware, adminMiddleware, notificationController.broadcastNotification);
 
 export default router;

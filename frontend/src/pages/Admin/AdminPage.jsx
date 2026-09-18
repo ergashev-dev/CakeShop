@@ -147,6 +147,12 @@ const AdminPage = () => {
   });
 
   const [aiStats, setAiStats] = useState(null);
+  const [customMemories, setCustomMemories] = useState([]);
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('');
+  const [newMemoryForm, setNewMemoryForm] = useState({ key: '', fact: '', category: 'custom' });
+  const [adminCopilotInput, setAdminCopilotInput] = useState('');
+  const [adminCopilotMessages, setAdminCopilotMessages] = useState([]);
+  const [isCopilotTyping, setIsCopilotTyping] = useState(false);
 
   const [analyticsData, setAnalyticsData] = useState({
     timeline: [],
@@ -334,12 +340,17 @@ const AdminPage = () => {
           const res = await settingsApi.get();
           if (res.data?.settings) setSettings(res.data.settings);
         } else if (activeTab === 'ai-settings') {
-          const [sRes, aRes] = await Promise.all([
+          const [sRes, aRes, mRes] = await Promise.all([
             settingsApi.get(),
             miraApi.getStats(),
+            miraApi.getMemories(),
           ]);
-          if (sRes.data?.settings) setSettings(sRes.data.settings);
+          if (sRes.data?.settings) {
+            setSettings(sRes.data.settings);
+            setGeminiApiKeyInput(sRes.data.settings.aiSettings?.geminiApiKey || '');
+          }
           if (aRes) setAiStats(aRes);
+          if (mRes) setCustomMemories(mRes);
         } else if (activeTab === 'orders') {
           const res = await orderApi.getAll();
           setOrders(res.data?.orders || []);
@@ -505,6 +516,93 @@ const AdminPage = () => {
       showToast('Mira AI sozlamalari yangilandi!');
     } catch (err) {
       showToast('Sozlamalarni saqlashda xatolik yuz berdi.', 'error');
+    }
+  };
+
+  // Save Google Gemini API Key
+  const handleSaveGeminiKey = async (e) => {
+    e?.preventDefault();
+    try {
+      setActionLoading(true);
+      const updatedAiSettings = {
+        ...(settings.aiSettings || {}),
+        geminiApiKey: geminiApiKeyInput.trim(),
+      };
+      const newSettings = {
+        ...settings,
+        aiSettings: updatedAiSettings,
+      };
+      setSettings(newSettings);
+      await settingsApi.update(newSettings);
+      showToast('Google Gemini API kaliti muvaffaqiyatli saqlandi!');
+    } catch (err) {
+      showToast('API kalitni saqlashda xatolik yuz berdi.', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Add Custom AI Memory Fact
+  const handleAddMemorySubmit = async (e) => {
+    e.preventDefault();
+    if (!newMemoryForm.fact.trim()) {
+      showToast('Fakt matnini kiriting.', 'error');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const res = await miraApi.addMemory(newMemoryForm);
+      if (res.memory) {
+        setCustomMemories((prev) => [res.memory, ...prev]);
+        setNewMemoryForm({ key: '', fact: '', category: 'custom' });
+        showToast('Yangi bilim AI xotirasiga saqlandi!');
+      }
+    } catch (err) {
+      showToast('Xotirani saqlashda xatolik yuz berdi.', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Delete Custom AI Memory Fact
+  const handleDeleteMemory = async (id) => {
+    if (!window.confirm('Haqiqatan ham ushbu bilimni AI xotirasidan o‘chirmoqchimisiz?')) return;
+    try {
+      await miraApi.deleteMemory(id);
+      setCustomMemories((prev) => prev.filter((m) => m.id !== id));
+      showToast('Bilim xotiradan o‘chirildi.');
+    } catch (err) {
+      showToast('O‘chirishda xatolik yuz berdi.', 'error');
+    }
+  };
+
+  // Admin Copilot send message
+  const handleAdminCopilotSubmit = async (e) => {
+    e.preventDefault();
+    const q = adminCopilotInput.trim();
+    if (!q) return;
+
+    const userMsg = { role: 'user', text: q, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+    setAdminCopilotMessages((prev) => [...prev, userMsg]);
+    setAdminCopilotInput('');
+    setIsCopilotTyping(true);
+
+    try {
+      const res = await miraApi.adminChat(q);
+      const copilotMsg = { role: 'copilot', text: res.reply, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+      setAdminCopilotMessages((prev) => [...prev, copilotMsg]);
+
+      if (res.action === 'memory_saved' && res.memory) {
+        setCustomMemories((prev) => [res.memory, ...prev]);
+        showToast('Yangi bilim xotirada saqlandi!');
+      }
+    } catch (err) {
+      setAdminCopilotMessages((prev) => [
+        ...prev,
+        { role: 'copilot', text: 'Kechirasiz, xatolik yuz berdi.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+      ]);
+    } finally {
+      setIsCopilotTyping(false);
     }
   };
 
@@ -2257,6 +2355,207 @@ const AdminPage = () => {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* GOOGLE GEMINI API CONFIGURATION */}
+              <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-6 shadow-card space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-[#E7E9ED] dark:border-[#272A30]">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#2563EB]" />
+                    <h4 className="font-bold text-sm">Google Gemini AI Integratsiyasi</h4>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    geminiApiKeyInput.trim() ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                  }`}>
+                    {geminiApiKeyInput.trim() ? 'Gemini API Faol' : 'Mahalliy NLP Faol'}
+                  </span>
+                </div>
+                <p className="text-xs text-[#6B7280]">
+                  Google AI Studio orqali olingan Gemini API kalitini kiriting. Kalit kiritilganda Mira eng so‘nggi Gemini 1.5 Flash modeli bilan javob beradi. Kalit kiritilmaganda esa saytning o‘rnatilgan aqlli NLP motori ishlaydi.
+                </p>
+                <form onSubmit={handleSaveGeminiKey} className="flex flex-col sm:flex-row items-center gap-3">
+                  <input
+                    type="password"
+                    placeholder="AIzaSy... (Gemini API Kaliti)"
+                    value={geminiApiKeyInput}
+                    onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+                    className="w-full flex-1 px-3.5 py-2 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1F2227] text-xs font-mono outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                  />
+                  <Button variant="primary" type="submit" loading={actionLoading} className="w-full sm:w-auto px-6 cursor-pointer">
+                    Kalitni saqlash
+                  </Button>
+                </form>
+              </div>
+
+              {/* AI XOTIRASI & MAXSUS BILIMLAR (MEMORY MANAGER) */}
+              <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-6 shadow-card space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-[#E7E9ED] dark:border-[#272A30]">
+                  <div>
+                    <h4 className="font-bold text-sm">Mira AI Xotirasi & Maxsus Bilimlar</h4>
+                    <p className="text-xs text-[#6B7280] mt-0.5">
+                      Miraga yangi faktlar o‘rgating (masalan: Sayt yaratuvchisi, yangi qoidalar, bayram aksiyalari). Mira bu faktlarni doim eslab qoladi va mijozlar so‘raganda aytib beradi.
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-[#6B7280]">
+                    {customMemories.length} ta bilim
+                  </span>
+                </div>
+
+                {/* Add New Memory Form */}
+                <form onSubmit={handleAddMemorySubmit} className="p-4 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1F2227] space-y-3">
+                  <span className="text-xs font-bold text-[#17181A] dark:text-[#F3F4F6] block">Yangi bilim qo‘shish:</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div className="sm:col-span-4">
+                      <label className="text-[11px] font-bold text-[#6B7280] block mb-1">Kalit so‘z (Teg)</label>
+                      <input
+                        type="text"
+                        placeholder="Masalan: creator, chegirma"
+                        value={newMemoryForm.key}
+                        onChange={(e) => setNewMemoryForm({ ...newMemoryForm, key: e.target.value })}
+                        className="w-full px-3 py-1.5 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-white dark:bg-[#16181D] text-xs outline-none"
+                      />
+                    </div>
+                    <div className="sm:col-span-8">
+                      <label className="text-[11px] font-bold text-[#6B7280] block mb-1">Fakt / Bilim matni *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Masalan: Sayt va Mira AI yaratuvchisi — Abdurashid Ergashev."
+                        value={newMemoryForm.fact}
+                        onChange={(e) => setNewMemoryForm({ ...newMemoryForm, fact: e.target.value })}
+                        className="w-full px-3 py-1.5 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-white dark:bg-[#16181D] text-xs outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-1">
+                    <Button variant="secondary" size="sm" type="submit" loading={actionLoading} className="cursor-pointer">
+                      Xotiraga saqlash
+                    </Button>
+                  </div>
+                </form>
+
+                {/* Memories List Table */}
+                <div className="space-y-2 pt-2">
+                  <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wider block">
+                    Xotiradagi mavjud bilimlar:
+                  </span>
+                  {customMemories.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-[#6B7280]">
+                      Hozircha maxsus bilimlar kiritilmagan.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[#E7E9ED]/60 dark:divide-[#272A30]/60">
+                      {customMemories.map((mem) => (
+                        <div key={mem.id || mem.key} className="py-2.5 flex items-center justify-between gap-3 hover:bg-[#F7F8FA] dark:hover:bg-[#1E2026] px-2 rounded-xl transition-colors">
+                          <div className="space-y-0.5 max-w-xl">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded-md bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 text-[#2563EB] font-mono text-[10px] font-bold uppercase">
+                                {mem.key || 'fakt'}
+                              </span>
+                              {mem.key === 'creator' && (
+                                <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-bold">
+                                  Loyiha Asoschisi
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-[#17181A] dark:text-[#F3F4F6] font-medium leading-relaxed">
+                              {mem.fact}
+                            </p>
+                          </div>
+                          {mem.id !== 'mem-creator' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMemory(mem.id)}
+                              className="p-1.5 text-stone-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                              title="O‘chirish"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ADMIN COPILOT CONSOLE */}
+              <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-6 shadow-card space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-[#E7E9ED] dark:border-[#272A30]">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <h4 className="font-bold text-sm">Admin Copilot — Boshqaruv Muloqoti</h4>
+                  </div>
+                  <span className="text-xs text-[#6B7280]">
+                    Administrator uchun maxsus AI intellekti
+                  </span>
+                </div>
+                <p className="text-xs text-[#6B7280]">
+                  Bu yerda Mira bilan bevosita muloqot qilishingiz, savdo hisobotlarini so‘rashingiz yoki unga yangi faktlarni suhbat davomida o‘rgatishingiz mumkin (Masalan: «Eslab qol: Sayt yaratuvchisi Abdurashid Ergashev»).
+                </p>
+
+                {/* Quick Query Chips */}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {[
+                    'Bugungi savdo va tushum qancha?',
+                    'Eng xaridorgir va ommabop tortlar qaysi?',
+                    'Sayt yaratuvchisi Abdurashid Ergashev deb eslab qol',
+                    'Kutilayotgan buyurtmalar nechta?',
+                  ].map((prompt, pIdx) => (
+                    <button
+                      key={pIdx}
+                      type="button"
+                      onClick={() => {
+                        setAdminCopilotInput(prompt);
+                      }}
+                      className="px-2.5 py-1 rounded-lg border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2026] hover:border-[#2563EB] text-[11px] font-semibold text-[#4B5563] dark:text-[#9CA3AF] transition-colors cursor-pointer"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Copilot Messages Log */}
+                <div className="max-h-64 overflow-y-auto p-3.5 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2026] space-y-3 text-xs">
+                  {adminCopilotMessages.length === 0 ? (
+                    <div className="text-center py-6 text-stone-400">
+                      Mira Admin Copilot tayyor. Savol bering yoki yangi ma'lumot o‘rgating.
+                    </div>
+                  ) : (
+                    adminCopilotMessages.map((m, idx) => (
+                      <div key={idx} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                        <div className={`p-3 rounded-xl max-w-lg leading-relaxed ${
+                          m.role === 'user'
+                            ? 'bg-[#2563EB] text-white rounded-tr-none'
+                            : 'bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] text-[#17181A] dark:text-[#F3F4F6] rounded-tl-none shadow-xs'
+                        }`}>
+                          <div className="whitespace-pre-line">{m.text}</div>
+                        </div>
+                        <span className="text-[9px] text-[#9CA3AF] mt-0.5 px-1">{m.time}</span>
+                      </div>
+                    ))
+                  )}
+                  {isCopilotTyping && (
+                    <div className="text-xs text-[#2563EB] font-semibold flex items-center gap-1.5 animate-pulse">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Mira tahlil qilmoqda...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Copilot Input */}
+                <form onSubmit={handleAdminCopilotSubmit} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Savol bering yoki o‘rgating (Masalan: Bugungi tushum qancha?)..."
+                    value={adminCopilotInput}
+                    onChange={(e) => setAdminCopilotInput(e.target.value)}
+                    className="w-full flex-1 px-3.5 py-2.5 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-white dark:bg-[#16181D] text-xs font-semibold outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                  />
+                  <Button variant="primary" type="submit" icon={Send} loading={isCopilotTyping} className="px-5 cursor-pointer">
+                    Yuborish
+                  </Button>
+                </form>
               </div>
             </div>
           )}

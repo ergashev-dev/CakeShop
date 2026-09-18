@@ -102,6 +102,7 @@ export const walletApi = {
 export const notificationApi = {
   getAll: () => api.get('/notifications'),
   markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  delete: (id) => api.delete(`/notifications/${id}`),
   broadcast: (data) => api.post('/notifications/broadcast', data),
 };
 

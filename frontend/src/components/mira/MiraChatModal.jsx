@@ -1,57 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send, Image, Loader2, Sparkles } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import miraApi from '../../services/mira/miraApi';
+import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import MiraHeader from './MiraHeader';
 import MiraMessage from './MiraMessage';
 import MiraTyping from './MiraTyping';
-import MiraQuickActions from './MiraQuickActions';
 import MiraVoiceButton from './MiraVoiceButton';
-import { miraApi } from '../../services/mira/miraApi';
-import { useCart } from '../../context/CartContext';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
-
-const INITIAL_QUICK_ACTIONS = [
-  '🍰 Tort tanlash',
-  '💰 300 000 gacha',
-  '🍫 Shokoladli tortlar',
-  '🚚 Yetkazib berish',
-  '🛒 Savatni ko‘rish',
-  '❓ Bol Tortlari haqida',
-];
 
 export const MiraChatModal = ({ isOpen, onClose, aiSettings = {} }) => {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
-  const { addToCart, clearCart, setIsCartOpen, cart, cartSubtotal } = useCart();
   const { user } = useAuth();
-  const { toast } = useToast();
+  const { addToCart, clearCart, setIsCartOpen } = useCart();
 
+  // Load history if exists, or start clean with empty Gemini-style state
   const [messages, setMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem('bol_tortlari_mira_history');
-      if (saved) {
+    const saved = localStorage.getItem('bol_tortlari_mira_history');
+    if (saved) {
+      try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Remove legacy dummy welcome bubble if user previously had it
+          return parsed.filter(m => m.id !== 'welcome-1' && m.id !== 'welcome-reset' && m.id !== 'welcome');
+        }
+      } catch (e) {
+        // ignore
       }
-    } catch {
-      // ignore
     }
-    return [
-      {
-        id: 'welcome-1',
-        role: 'assistant',
-        text:
-          i18n.language === 'ru'
-            ? 'Здравствуйте! Я Mira 👋\n\nЯ помогу вам выбрать торт, узнать цены, оформить заказ и ответить на любые вопросы о Bol Tortlari.\n\nЧем я могу помочь вам сегодня?'
-            : i18n.language === 'en'
-            ? 'Hello! I am Mira 👋\n\nI can help you select cakes, check prices, place orders, and answer questions about Bol Tortlari.\n\nHow can I help you today?'
-            : 'Salom! Men Mira 👋\n\nMen sizga tort tanlash, narxlarni bilish, buyurtma berish va Bol Tortlari haqida savollarga javob berishda yordam beraman.\n\nBugun sizga qanday yordam beray?',
-        quickActions: INITIAL_QUICK_ACTIONS,
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    return [];
   });
 
   const [inputVal, setInputVal] = useState('');
@@ -63,7 +40,7 @@ export const MiraChatModal = ({ isOpen, onClose, aiSettings = {} }) => {
 
   // Auto-scroll on new messages
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && messages.length > 0) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isTyping, isOpen]);
@@ -112,47 +89,39 @@ export const MiraChatModal = ({ isOpen, onClose, aiSettings = {} }) => {
         message: text,
         history: historyContext,
         image: userMsg.image,
-        cartContext: {
-          itemsCount: cart.length,
-          subtotal: cartSubtotal,
-        },
       });
 
       const assistantMsg = {
-        id: `assistant-${Date.now()}`,
+        id: `asst-${Date.now()}`,
         role: 'assistant',
-        text: res.reply || 'Savolingiz qabul qilindi.',
+        text: res.reply,
         products: res.products || [],
         order: res.order || null,
-        quickActions: res.quickActions || [],
-        requiresConfirmation: Boolean(res.requiresConfirmation),
+        requiresConfirmation: res.requiresConfirmation || false,
         confirmationType: res.confirmationType || null,
-        confirmationTitle: res.confirmationTitle || 'Amalni tasdiqlash',
-        confirmationDesc: res.confirmationDesc || res.reply,
+        confirmationTitle: res.requiresConfirmation
+          ? 'Tasdiqlash'
+          : null,
+        confirmationDesc: res.reply,
+        confirmLabel: 'Ha, tasdiqlayman',
+        cancelLabel: 'Bekor qilish',
+        quickActions: res.quickActions || [],
         createdAt: new Date().toISOString(),
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
 
-      // Client action execution
+      // Execute client-side side-effects if needed
       if (res.action === 'open_cart') {
         setIsCartOpen(true);
-      } else if (res.action === 'open_auth') {
-        // Will notify user
-      } else if (res.action === 'view_catalog') {
-        navigate('/cakes');
       }
     } catch (err) {
-      console.error('Mira send message error:', err);
       setMessages((prev) => [
         ...prev,
         {
           id: `err-${Date.now()}`,
           role: 'assistant',
-          text: t(
-            'mira.error_network',
-            'Internet aloqasida muammo yuz berdi. Iltimos, qayta urinib ko‘ring.'
-          ),
+          text: 'Kechirasiz, xatolik yuz berdi. Iltimos, qaytadan urinib ko‘ring.',
           createdAt: new Date().toISOString(),
         },
       ]);
@@ -162,20 +131,26 @@ export const MiraChatModal = ({ isOpen, onClose, aiSettings = {} }) => {
   };
 
   const handleAddToCart = (cake) => {
-    addToCart(cake, 1);
-    toast.success(`${cake.name} savatga qo‘shildi!`);
+    addToCart(cake);
+    const confirmMsg = {
+      id: `cart-add-${Date.now()}`,
+      role: 'assistant',
+      text: `✅ «${cake.name}» savatga qo‘shildi! Buyurtmani rasmiylashtirasizmi yoki yana tort ko‘rasizmi?`,
+      quickActions: ['🛒 Savatni ochish', '🍰 Boshqa tortlar', '🚚 Yetkazib berish'],
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, confirmMsg]);
   };
 
   const handleConfirmAction = (type) => {
     if (type === 'clear_cart') {
       clearCart();
-      toast.success('Savatchangiz tozalandi.');
       setMessages((prev) => [
         ...prev,
         {
-          id: `clear-resp-${Date.now()}`,
+          id: `cart-cleared-${Date.now()}`,
           role: 'assistant',
-          text: 'Savatingiz muvaffaqiyatli tozalandi. Yangi tort tanlaymizmi?',
+          text: 'Savatchangiz muvaffaqiyatli tozalandi! Boshqa tort tanlashni xohlaysizmi?',
           quickActions: ['🍰 Tort tanlash', '💰 300 000 gacha'],
           createdAt: new Date().toISOString(),
         },
@@ -183,7 +158,7 @@ export const MiraChatModal = ({ isOpen, onClose, aiSettings = {} }) => {
     }
   };
 
-  const handleCancelAction = () => {
+  const handleCancelAction = (type) => {
     setMessages((prev) => [
       ...prev,
       {
@@ -199,18 +174,7 @@ export const MiraChatModal = ({ isOpen, onClose, aiSettings = {} }) => {
   const handleClearHistory = () => {
     if (window.confirm(t('mira.clear_chat_confirm', 'Chat tarixini tozalashni tasdiqlaysizmi?'))) {
       localStorage.removeItem('bol_tortlari_mira_history');
-      setMessages([
-        {
-          id: 'welcome-reset',
-          role: 'assistant',
-          text: t(
-            'mira.welcome_message',
-            'Salom! Men Mira 👋\n\nMen sizga tort tanlash, narxlarni bilish, buyurtma berish va Bol Tortlari haqida savollarga javob berishda yordam beraman.\n\nBugun sizga qanday yordam beray?'
-          ),
-          quickActions: INITIAL_QUICK_ACTIONS,
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+      setMessages([]);
     }
   };
 
@@ -223,7 +187,6 @@ export const MiraChatModal = ({ isOpen, onClose, aiSettings = {} }) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       setSelectedImage(e.target.result);
-      // Auto prompt
       handleSendMessage('Shu rasmga o‘xshash tort bormi?');
     };
     reader.readAsDataURL(file);
@@ -244,16 +207,58 @@ export const MiraChatModal = ({ isOpen, onClose, aiSettings = {} }) => {
 
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {messages.map((msg) => (
-          <MiraMessage
-            key={msg.id}
-            message={msg}
-            onAddToCart={handleAddToCart}
-            onQuickAction={(text) => handleSendMessage(text)}
-            onConfirmAction={handleConfirmAction}
-            onCancelAction={handleCancelAction}
-          />
-        ))}
+        {messages.length === 0 ? (
+          /* Google Gemini-Style Empty State */
+          <div className="h-full flex flex-col items-center justify-center p-4 text-center animate-in fade-in zoom-in-95 duration-200 select-none">
+            {/* Glowing Sparkle Logo */}
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#2563EB] via-indigo-500 to-amber-400 p-0.5 shadow-xl mb-3 animate-pulse duration-1000">
+              <div className="w-full h-full rounded-[14px] bg-white dark:bg-[#16181D] flex items-center justify-center">
+                <Sparkles className="w-7 h-7 text-amber-500" />
+              </div>
+            </div>
+
+            <h3 className="text-xl sm:text-2xl font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500 bg-clip-text text-transparent">
+              {user?.name ? `Salom, ${user.name}!` : 'Salom! Men Mira'}
+            </h3>
+
+            <p className="text-xs sm:text-sm text-[#6B7280] dark:text-[#9CA3AF] mt-1.5 max-w-xs leading-relaxed">
+              Bugun sizga qanday shirinlik yoki ma'lumot kerak?
+            </p>
+
+            {/* Gemini Prompt Suggestion Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-6 w-full max-w-sm">
+              {[
+                { icon: '🎂', title: '300 000 so‘mgacha tortlar', prompt: '300 000 so‘mgacha qanday tortlar bor?' },
+                { icon: '🚚', title: 'Yetkazib berish shartlari', prompt: 'Yetkazib berish narxi va vaqti qancha?' },
+                { icon: '📦', title: 'Buyurtma holatini tekshirish', prompt: 'Buyurtmam qayerda?' },
+                { icon: '👨‍💻', title: 'Saytni kim yaratgan?', prompt: 'Sayt va Mirani kim yaratgan?' },
+              ].map((card, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSendMessage(card.prompt)}
+                  className="p-3 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2026] hover:border-[#2563EB] dark:hover:border-[#2563EB] hover:shadow-xs transition-all text-left group cursor-pointer active:scale-95"
+                >
+                  <span className="text-base block mb-0.5">{card.icon}</span>
+                  <span className="text-xs font-bold text-[#17181A] dark:text-[#F3F4F6] group-hover:text-[#2563EB] transition-colors line-clamp-1">
+                    {card.title}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <MiraMessage
+              key={msg.id}
+              message={msg}
+              onAddToCart={handleAddToCart}
+              onQuickAction={(text) => handleSendMessage(text)}
+              onConfirmAction={handleConfirmAction}
+              onCancelAction={handleCancelAction}
+            />
+          ))
+        )}
 
         {isTyping && <MiraTyping text={typingText} />}
         <div ref={messagesEndRef} />

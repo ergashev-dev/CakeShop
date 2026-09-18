@@ -26,7 +26,11 @@ router.get('/settings', aiController.getSettings);
 // Public structured site knowledge
 router.get('/site-info', aiController.getSiteInfo);
 
-// Admin-only AI stats
+// Admin-only AI stats & memory management
 router.get('/stats', authMiddleware, adminMiddleware, aiController.getStats);
+router.get('/memories', authMiddleware, adminMiddleware, aiController.getMemories);
+router.post('/memories', authMiddleware, adminMiddleware, aiController.addMemory);
+router.delete('/memories/:id', authMiddleware, adminMiddleware, aiController.deleteMemory);
+router.post('/admin-chat', authMiddleware, adminMiddleware, aiController.adminChat);
 
 export default router;

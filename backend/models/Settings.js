@@ -24,6 +24,19 @@ const settingsSchema = new mongoose.Schema(
       voiceAssistant: { type: Boolean, default: true },
       generalAiQuestions: { type: Boolean, default: true },
       imageUnderstanding: { type: Boolean, default: true },
+      geminiApiKey: { type: String, default: '' },
+      customMemories: {
+        type: Array,
+        default: [
+          {
+            id: 'mem-creator',
+            key: 'creator',
+            fact: 'Sayt va Mira AI yaratuvchisi hamda dasturchisi — Abdurashid Ergashev.',
+            category: 'creator',
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      },
     },
   },
   { timestamps: true }
@@ -57,6 +70,16 @@ class SettingsProxy {
       voiceAssistant: true,
       generalAiQuestions: true,
       imageUnderstanding: true,
+      geminiApiKey: '',
+      customMemories: [
+        {
+          id: 'mem-creator',
+          key: 'creator',
+          fact: 'Sayt va Mira AI yaratuvchisi hamda dasturchisi — Abdurashid Ergashev.',
+          category: 'creator',
+          createdAt: new Date().toISOString(),
+        },
+      ],
     };
 
     const doc = {

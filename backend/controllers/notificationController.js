@@ -96,4 +96,20 @@ export const notificationController = {
       return res.status(500).json({ error: 'Xabarnoma tarqatishda xatolik yuz berdi.' });
     }
   },
+
+  /**
+   * Delete notification by ID
+   */
+  async deleteNotification(req, res) {
+    try {
+      const { id } = req.params;
+      await Notification.findByIdAndDelete(id);
+      return res.json({ success: true, message: 'Bildirishnoma o‘chirildi.' });
+    } catch (error) {
+      console.error('Delete notification error:', error.message);
+      return res.status(500).json({ error: 'Bildirishnomani o‘chirishda xatolik yuz berdi.' });
+    }
+  },
 };
+
+export default notificationController;

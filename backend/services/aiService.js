@@ -8,12 +8,10 @@ import { siteKnowledge } from './aiKnowledge.js';
  */
 export const detectLanguage = (text = '') => {
   const lower = text.toLowerCase();
-  // Russian Cyrillic characters
   if (/[а-яё]/i.test(lower)) {
     return 'ru';
   }
-  // English common words
-  if (/\b(what|where|how|price|cake|delivery|order|hello|hi|please|contact)\b/i.test(lower)) {
+  if (/\b(what|where|how|price|cake|delivery|order|hello|hi|please|contact|who)\b/i.test(lower)) {
     return 'en';
   }
   return 'uz';
@@ -24,14 +22,12 @@ export const detectLanguage = (text = '') => {
  */
 export const extractPriceConstraint = (text = '') => {
   const lower = text.toLowerCase();
-  // e.g. "300 ming", "300ming", "300 k", "300k"
   const mingMatch = lower.match(/(\d+[\d\s.,]*)\s*(ming|k|тыс)/i);
   if (mingMatch) {
     const num = parseFloat(mingMatch[1].replace(/[\s.,]/g, ''));
     if (!isNaN(num)) return num * 1000;
   }
 
-  // e.g. "300000", "250 000"
   const exactMatch = lower.match(/(?:gacha|dan|narxi|budget|gacha bo‘lgan|до)?\s*(\d{5,7})/i);
   if (exactMatch) {
     const num = parseFloat(exactMatch[1]);
@@ -60,21 +56,16 @@ export const aiService = {
       const q = (query || flavor || '').toLowerCase().trim();
 
       const filtered = allCakes.filter((cake) => {
-        // Stock check
         if (cake.in_stock === false) return false;
-
-        // Max price filter
         if (maxPrice && cake.price > maxPrice) return false;
 
-        // Category filter
         if (category && category !== 'all') {
           const cat = (cake.category_slug || cake.category_name || '').toLowerCase();
           if (!cat.includes(category.toLowerCase())) return false;
         }
 
-        // Query filter
         if (q) {
-          const nameMatch = cake.name.toLowerCase().includes(q);
+          const nameMatch = (cake.name || '').toLowerCase().includes(q);
           const descMatch = (cake.description || '').toLowerCase().includes(q);
           const ingMatch = (cake.ingredients || '').toLowerCase().includes(q);
           const catMatch = (cake.category_name || '').toLowerCase().includes(q);
@@ -84,7 +75,6 @@ export const aiService = {
         return true;
       });
 
-      // Sort by popularity or sales
       filtered.sort((a, b) => (b.is_popular ? 1 : 0) - (a.is_popular ? 1 : 0));
       return filtered.slice(0, 6);
     } catch (err) {
@@ -98,17 +88,22 @@ export const aiService = {
    */
   async getOrderStatus({ orderId = '', user = null }) {
     try {
+      if (!user) return [];
+
+      let filter = { user: user._id };
       if (orderId) {
-        const order = await Order.findOne({ orderId: orderId.trim() });
-        if (order) return [order];
+        filter = {
+          $or: [
+            { orderId: orderId.toUpperCase() },
+            { orderId: `#${orderId.toUpperCase()}` },
+            { orderId: `ORD-${orderId.toUpperCase()}` },
+            { _id: orderId },
+          ],
+        };
       }
 
-      if (user && user._id) {
-        const orders = await Order.find({ customer: user._id }).sort({ createdAt: -1 }).limit(3);
-        return orders;
-      }
-
-      return [];
+      const orders = await Order.find(filter).sort({ createdAt: -1 }).limit(3);
+      return orders;
     } catch (err) {
       console.error('getOrderStatus tool error:', err);
       return [];
@@ -116,15 +111,24 @@ export const aiService = {
   },
 
   /**
-   * Get delivery zone and fee information
+   * Check delivery coverage and fee
    */
   async getDeliveryInfo(locationQuery = '') {
+    const lower = locationQuery.toLowerCase();
     const settings = await Settings.findOne();
-    const freeThreshold = settings?.freeDeliveryThreshold || siteKnowledge.delivery.freeThreshold;
+
     const standardFee = settings?.deliveryFee || siteKnowledge.delivery.standardFee;
     const outsideFee = settings?.deliveryFeeOutside || siteKnowledge.delivery.outsideFee;
+    const freeThreshold = settings?.freeDeliveryThreshold || siteKnowledge.delivery.freeThreshold;
 
-    const lower = locationQuery.toLowerCase();
+    const isOutside =
+      lower.includes('viloyat') ||
+      lower.includes('oblast') ||
+      lower.includes('tashqari') ||
+      lower.includes('qibray') ||
+      lower.includes('chirchiq') ||
+      lower.includes('yangiyo‘l');
+
     const isTashkentDistrict =
       lower.includes('chilonzor') ||
       lower.includes('yunusobod') ||
@@ -135,18 +139,8 @@ export const aiService = {
       lower.includes('mirobod') ||
       lower.includes('sergeli') ||
       lower.includes('uchtepa') ||
-      lower.includes('yashnobod') ||
-      lower.includes('bektemir') ||
-      lower.includes('toshkent') ||
-      lower.includes('farg‘ona') ||
-      lower.includes('fargona');
-
-    const isOutside =
-      lower.includes('qibray') ||
-      lower.includes('chirchiq') ||
-      lower.includes('zangiota') ||
-      lower.includes('yangiyo‘l') ||
-      lower.includes('viloyat');
+      lower.includes('fargona') ||
+      lower.includes('farg‘ona');
 
     return {
       available: isTashkentDistrict || isOutside || !locationQuery,
@@ -156,6 +150,43 @@ export const aiService = {
       estimatedTime: isOutside ? '60 - 120 daqiqa' : siteKnowledge.delivery.estimatedMinutes,
       workingHours: settings?.workingHours || siteKnowledge.contacts.workingHours,
     };
+  },
+
+  /**
+   * Call real Google Gemini API (gemini-1.5-flash)
+   */
+  async callGeminiApi({ prompt, systemInstruction, apiKey }) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const payload = {
+      systemInstruction: {
+        parts: [{ text: systemInstruction }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 600,
+      },
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Gemini API HTTP ${response.status}: ${errText}`);
+    }
+
+    const data = await response.json();
+    const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    return candidate || null;
   },
 
   /**
@@ -172,6 +203,8 @@ export const aiService = {
       voiceAssistant: true,
       generalAiQuestions: true,
       imageUnderstanding: true,
+      geminiApiKey: '',
+      customMemories: [],
     };
 
     if (aiConfig.isEnabled === false) {
@@ -192,7 +225,61 @@ export const aiService = {
     const peopleCount = extractPeopleCount(lower);
 
     // ----------------------------------------------------
-    // 1. ORDER STATUS / TRACKING INTENT (Requirement 13)
+    // 0. CREATOR & DEVELOPER IDENTITY INTENT (Strict priority)
+    // ----------------------------------------------------
+    if (
+      lower.includes('kim yaratgan') ||
+      lower.includes('kim yaratdi') ||
+      lower.includes('yaratuvchi') ||
+      lower.includes('dasturchi') ||
+      lower.includes('kim ishlab chiqqan') ||
+      lower.includes('sayt egasi') ||
+      lower.includes('avtor') ||
+      lower.includes('muallif') ||
+      lower.includes('seni kim') ||
+      lower.includes('кто тебя создал') ||
+      lower.includes('кто создал') ||
+      lower.includes('кто разработчик') ||
+      lower.includes('who created') ||
+      lower.includes('who made you') ||
+      lower.includes('who developed')
+    ) {
+      if (lang === 'ru') {
+        return {
+          reply: 'Меня зовут **Mira** — официальный ИИ-ассистент Bol Tortlari. Этот современный сайт и мой искусственный интеллект были созданы талантливым разработчиком и основателем проекта **Абдурашидом Эргашевым** (Abdurashid Ergashev).',
+          quickActions: ['🍰 Каталог тортов', '🚚 Условия доставки', '📍 Контакты'],
+        };
+      }
+      if (lang === 'en') {
+        return {
+          reply: 'I am **Mira** — the official AI Assistant of Bol Tortlari. This website and my AI intelligence were created by the founder and lead developer **Abdurashid Ergashev**.',
+          quickActions: ['🍰 Cake catalog', '🚚 Delivery terms', '📍 Contacts'],
+        };
+      }
+      return {
+        reply: 'Men **Mira** — Bol Tortlari qandolatchilik uyi platformasining rasmiy aqlli AI yordamchisiman. Ushbu zamonaviy veb-sayt va mening butun sun‘iy intellekt tizimim loyiha asoschisi hamda yetakchi dasturchisi **Abdurashid Ergashev** tomonidan yaratilgan!',
+        quickActions: ['🍰 Tortlar katalogi', '🚚 Yetkazib berish', '📞 Bog‘lanish'],
+      };
+    }
+
+    // ----------------------------------------------------
+    // CHECK DYNAMIC CUSTOM MEMORIES
+    // ----------------------------------------------------
+    const memories = aiConfig.customMemories || [];
+    for (const mem of memories) {
+      if (mem && mem.fact) {
+        const memKey = (mem.key || '').toLowerCase();
+        if (memKey && memKey.length > 2 && lower.includes(memKey)) {
+          return {
+            reply: mem.fact,
+            quickActions: ['🍰 Tort tanlash', '🚚 Yetkazib berish'],
+          };
+        }
+      }
+    }
+
+    // ----------------------------------------------------
+    // 1. ORDER STATUS / TRACKING INTENT
     // ----------------------------------------------------
     if (
       lower.includes('buyurtma') ||
@@ -215,7 +302,6 @@ export const aiService = {
         };
       }
 
-      // Check if specific order ID provided in message (e.g. #ORD-1234 or 1234)
       const orderIdMatch = lower.match(/(?:#|ord-)?(\d{4,8})/i);
       const orders = await this.getOrderStatus({
         orderId: orderIdMatch ? orderIdMatch[1] : '',
@@ -250,53 +336,52 @@ export const aiService = {
     }
 
     // ----------------------------------------------------
-    // 2. BONUS / LOYALTY BALANCE INTENT (Requirement 14)
+    // 2. BONUS & LOYALTY BALANCE INTENT
     // ----------------------------------------------------
     if (
       lower.includes('bonus') ||
-      lower.includes('balans') ||
       lower.includes('keshbek') ||
-      lower.includes('бонус') ||
+      lower.includes('cashback') ||
+      lower.includes('balans') ||
       lower.includes('баланс') ||
       lower.includes('кэшбэк') ||
-      lower.includes('loyalty')
+      lower.includes('hamyon')
     ) {
       if (!user) {
         return {
           reply:
             lang === 'ru'
-              ? 'Бонусы и кэшбэк начисляются авторизованным пользователям (3% с каждого заказа). Войдите в систему, чтобы проверить баланс.'
+              ? 'Чтобы узнать баланс кэшбэка и бонусов, пожалуйста, войдите в свой профиль.'
               : lang === 'en'
-              ? 'Cashback and loyalty bonuses are available for signed-in users (3% on every order). Please sign in to check your balance.'
-              : 'Keshbek va bonuslar ro‘yxatdan o‘tgan mijozlarga har bir buyurtmadan 3% miqdorida beriladi. Balansingizni bilish uchun tizimga kiring.',
+              ? 'Please log in to view your loyalty bonus and cashback balance.'
+              : 'Keshbek va bonuslaringizni bilish uchun profilingizga kiring.',
           action: 'open_auth',
           quickActions: ['Kirish', 'Aksiyalar', 'Tort tanlash'],
         };
       }
 
       const balance = (user.walletBalance || 0).toLocaleString('uz-UZ');
+      if (lang === 'ru') {
+        return {
+          reply: `💰 Ваш текущий баланс кэшбэка: **${balance} сум**.\n\nВы можете использовать эти средства для полной или частичной оплаты любого торта!`,
+          quickActions: ['🍰 Выбрать торт', '🛒 Использовать в корзине'],
+        };
+      }
       return {
-        reply:
-          lang === 'ru'
-            ? `Ваш бонусный баланс: **${balance} сум**. Вы можете использовать эти средства при следующем заказе!`
-            : lang === 'en'
-            ? `Your bonus balance is: **${balance} UZS**. You can use it towards your next cake order!`
-            : `Sizning hisobingizda **${balance} so‘m** bonus mavjud. Ushbu mablag‘ni keyingi xaridlaringizda to‘lov sifatida ishlatishingiz mumkin!`,
-        action: 'view_bonus',
-        quickActions: ['🍰 Tort tanlash', '🛒 Savatni ko‘rish', 'Aksiyalar'],
+        reply: `💰 Sizning hamyon balansingizda **${balance} so‘m** mavjud.\n\nHar bir buyurtmadan 3% keshbek avtomatik yig‘iladi va uni yangi buyurtmalarga to‘lov sifatida ishlatishingiz mumkin!`,
+        quickActions: ['🍰 Tort buyurtma qilish', '🛒 Savatni ko‘rish'],
       };
     }
 
     // ----------------------------------------------------
-    // 3. CART ACTIONS INTENT (Requirement 10)
+    // 3. CART OPERATIONS INTENT
     // ----------------------------------------------------
     if (
-      lower.includes('savatim') ||
-      lower.includes('savatda') ||
-      lower.includes('savatcha') ||
+      lower.includes('savat') ||
       lower.includes('korzina') ||
       lower.includes('корзина') ||
-      lower.includes('cart')
+      lower.includes('cart') ||
+      lower.includes('savatim')
     ) {
       if (lower.includes('tozala') || lower.includes('ochir') || lower.includes('очистить') || lower.includes('clear')) {
         return {
@@ -325,7 +410,7 @@ export const aiService = {
     }
 
     // ----------------------------------------------------
-    // 4. DELIVERY ZONE & INFO INTENT (Requirement 12)
+    // 4. DELIVERY ZONE & INFO INTENT
     // ----------------------------------------------------
     if (
       lower.includes('yetkazib') ||
@@ -360,42 +445,7 @@ export const aiService = {
     }
 
     // ----------------------------------------------------
-    // 5. BRAND / SITE INFORMATION INTENT (Requirement 7)
-    // ----------------------------------------------------
-    if (
-      lower.includes('haqida') ||
-      lower.includes('manzil') ||
-      lower.includes('telefon') ||
-      lower.includes('kontakt') ||
-      lower.includes('kim') ||
-      lower.includes('aloqa') ||
-      lower.includes('о нас') ||
-      lower.includes('адрес') ||
-      lower.includes('about')
-    ) {
-      const brand = siteKnowledge.brand;
-      const contacts = siteKnowledge.contacts;
-
-      if (lang === 'ru') {
-        return {
-          reply: `🍰 **О кондитерской Bol Tortlari:**\n\n${brand.description}\n\n📍 **Адрес:** ${contacts.address}\n⏰ **Время работы:** ${contacts.workingHours}\n📞 **Телефон:** ${contacts.phone}\n✈️ **Telegram:** ${contacts.telegram}\n📸 **Instagram:** ${contacts.instagram}`,
-          quickActions: ['🍰 Каталог тортов', '📞 Связаться', '🚚 Доставка'],
-        };
-      }
-      if (lang === 'en') {
-        return {
-          reply: `🍰 **About Bol Tortlari:**\n\n${brand.description}\n\n📍 **Location:** ${contacts.address}\n⏰ **Hours:** ${contacts.workingHours}\n📞 **Phone:** ${contacts.phone}\n✈️ **Telegram:** ${contacts.telegram}\n📸 **Instagram:** ${contacts.instagram}`,
-          quickActions: ['🍰 Cake catalog', '📞 Contact us', '🚚 Delivery'],
-        };
-      }
-      return {
-        reply: `🍰 **Bol Tortlari qandolatchilik uyi haqida:**\n\n${brand.description}\n\n📍 **Manzil:** ${contacts.address}\n⏰ **Ish vaqti:** ${contacts.workingHours}\n📞 **Telefon:** ${contacts.phone}\n✈️ **Telegram:** ${contacts.telegram}\n📸 **Instagram:** ${contacts.instagram}`,
-        quickActions: ['🍰 Tortlar katalogi', '📞 Operator bilan aloqa', '🚚 Yetkazib berish'],
-      };
-    }
-
-    // ----------------------------------------------------
-    // 6. IMAGE CAKE RECOGNITION (Requirement 16)
+    // 5. IMAGE CAKE RECOGNITION
     // ----------------------------------------------------
     if (image && aiConfig.imageUnderstanding !== false) {
       const allCakes = await Cake.find({ isActive: 1, in_stock: true }).limit(4);
@@ -413,7 +463,70 @@ export const aiService = {
     }
 
     // ----------------------------------------------------
-    // 7. PRODUCT SEARCH & RECOMMENDATION (Requirement 9 & 11)
+    // 6. REAL GOOGLE GEMINI API CALL (If configured)
+    // ----------------------------------------------------
+    const geminiKey = aiConfig.geminiApiKey || process.env.GEMINI_API_KEY;
+    if (geminiKey && geminiKey.trim()) {
+      try {
+        const activeCakes = await Cake.find({ isActive: 1, in_stock: true }).limit(25);
+        const cakeSummary = activeCakes
+          .map((c) => `- ${c.name}: ${c.price.toLocaleString()} so'm (${c.weight || '1.5 kg'}), Kategoriya: ${c.category_name || c.category_slug}`)
+          .join('\n');
+
+        const memorySummary = (aiConfig.customMemories || [])
+          .map((m) => `- ${m.fact}`)
+          .join('\n');
+
+        const systemInstruction = `Siz "Bol Tortlari" (boltortlar.uz) rasmiy aqlli AI yordamchisi "Mira"siz.
+ASOSIY QOIDALAR:
+1. Sayt va Mira AI yaratuvchisi, asoschisi hamda yetakchi dasturchisi: Abdurashid Ergashev. Agar foydalanuvchi "seni kim yaratgan", "dasturchi kim", "sayt egasi kim" deb so'rasa, albatta "Abdurashid Ergashev" deb javob bering.
+2. Bol Tortlari haqida ma'lumot:
+   - Filiallar: Toshkent shahri (barcha tumanlar) va Farg'ona shahri.
+   - Ish vaqti: 09:00 - 21:00 (dam olish kunlarisiz).
+   - Telefon: +998 (90) 123-45-67, Telegram: @boltortlari_admin.
+   - Yetkazib berish: Shahar ichida 15 000 so'm, 300 000 so'mdan yuqori buyurtmalar bepul. 45-90 daqiqada yetkaziladi.
+   - To'lov turlari: Payme, Click, karta (Humo/Uzcard), naqd pul.
+3. Maxsus xotiralar va faktlar:
+${memorySummary || 'Maxsus xotiralar kiritilmagan.'}
+4. Katalogdagi mashhur tortlar:
+${cakeSummary}
+5. Muloqot qoidalari:
+   - Foydalanuvchi qaysi tilda yozsa (o'zbekcha, ruscha yoki inglizcha), faqat shu tilda muloyim va aniq javob bering.
+   - Ortiqcha gap va doston yozmang. Faqat so'ralgan savolga lo‘nda va chiroyli javob bering.
+   - Agar foydalanuvchi narx yoki tort qidirayotgan bo'lsa, mavjud katalogdagi tortlarni tavsiya qiling.`;
+
+        const geminiReply = await this.callGeminiApi({
+          prompt: message,
+          systemInstruction,
+          apiKey: geminiKey.trim(),
+        });
+
+        if (geminiReply && geminiReply.trim()) {
+          let attachedProducts = [];
+          if (
+            lower.includes('tort') ||
+            lower.includes('narx') ||
+            lower.includes('qancha') ||
+            lower.includes('tavsiya') ||
+            maxPrice !== null
+          ) {
+            attachedProducts = await this.searchProducts({ query: '', maxPrice });
+          }
+
+          return {
+            reply: geminiReply.trim(),
+            products: attachedProducts.slice(0, 4),
+            action: attachedProducts.length > 0 ? 'show_products' : null,
+            quickActions: ['🍰 Tort tanlash', '💰 300 000 gacha', '🚚 Yetkazib berish', '🛒 Savat'],
+          };
+        }
+      } catch (geminiError) {
+        console.warn('Gemini API call failed, falling back to built-in NLP engine:', geminiError.message);
+      }
+    }
+
+    // ----------------------------------------------------
+    // 7. PRODUCT SEARCH & RECOMMENDATION (Local NLP Engine)
     // ----------------------------------------------------
     if (
       aiConfig.productRecommendations !== false &&
@@ -437,7 +550,6 @@ export const aiService = {
         lower.includes('клубник') ||
         lower.includes('cake'))
     ) {
-      // Extract flavor keywords
       let flavor = '';
       if (lower.includes('shokolad') || lower.includes('шоколад') || lower.includes('chocolate')) flavor = 'shokolad';
       else if (lower.includes('qulupnay') || lower.includes('клубник') || lower.includes('strawberry')) flavor = 'qulupnay';
@@ -479,7 +591,7 @@ export const aiService = {
     }
 
     // ----------------------------------------------------
-    // 8. GENERAL AI CONVERSATION (Requirement 17)
+    // 8. GENERAL CONVERSATION & GREETINGS
     // ----------------------------------------------------
     if (aiConfig.generalAiQuestions !== false) {
       if (lower.includes('salom') || lower.includes('привет') || lower.includes('hello') || lower.includes('hi')) {
@@ -516,6 +628,81 @@ export const aiService = {
           ? 'I can help you choose the perfect cake for your budget, check delivery terms, or track your order. What would you like to know?'
           : 'Men sizga didingiz va byudjetingizga mos tort tanlash, yetkazib berish shartlarini bilish yoki buyurtmangiz holatini kuzatishda yordam bera olaman. Sizga qanday tort ma’qul?',
       quickActions: ['🍰 Tort tanlash', '🍫 Shokoladli tortlar', '🚚 Yetkazib berish', '📞 Operatorga ulash'],
+    };
+  },
+
+  /**
+   * Admin Copilot & Teaching Handler
+   */
+  async processAdminMessage({ message = '', user = null }) {
+    const lower = message.toLowerCase().trim();
+    const settings = await Settings.findOne();
+    const currentMemories = settings?.aiSettings?.customMemories || [];
+
+    // 1. Detect if Admin is teaching a new fact / memory
+    const teachPrefixes = ['sayt yaratuvchisi', 'eslab qol', 'yodda saqla', 'o‘rgan', 'o\'rgan', 'qoida:', 'fakt:'];
+    const isTeaching = teachPrefixes.some((p) => lower.startsWith(p) || lower.includes(p));
+
+    if (isTeaching || (lower.includes('yaratuvchisi') && lower.includes('ergashev'))) {
+      const newFact = message.replace(/^(eslab qol:?|yodda saqla:?|o‘rgan:?|o'rgan:?)/i, '').trim();
+      const newMem = {
+        id: 'mem-' + Date.now(),
+        key: lower.includes('yaratuvchi') ? 'creator' : 'admin_rule',
+        fact: newFact,
+        category: lower.includes('yaratuvchi') ? 'creator' : 'custom',
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedMemories = [
+        ...currentMemories.filter((m) => m.id !== 'mem-creator' || newMem.category !== 'creator'),
+        newMem,
+      ];
+
+      const updatedAiSettings = {
+        ...(settings.aiSettings || {}),
+        customMemories: updatedMemories,
+      };
+
+      settings.aiSettings = updatedAiSettings;
+      if (typeof settings.save === 'function') {
+        await settings.save();
+      }
+
+      return {
+        reply: `Tushundim, ${user?.name || 'Administrator'}! Ushbu ma'lumotni xotiramga muvaffaqiyatli saqladim:\n\n📌 *«${newMem.fact}»*\n\nEndi foydalanuvchilar yoki mijozlar bu mavzuda so‘rashsa, xuddi shu ma'lumotni beraman!`,
+        action: 'memory_saved',
+        memory: newMem,
+      };
+    }
+
+    // 2. Analytics queries for Admin Copilot
+    if (lower.includes('savdo') || lower.includes('tushum') || lower.includes('daromad') || lower.includes('statistika')) {
+      const allOrders = await Order.find({});
+      const today = new Date().toISOString().split('T')[0];
+      const todayOrders = allOrders.filter((o) => o.createdAt && o.createdAt.startsWith(today));
+      const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+      const totalRevenue = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+      const pendingOrders = allOrders.filter((o) => ['pending', 'preparing', 'confirmed'].includes(o.status));
+
+      return {
+        reply: `📊 **Bol Tortlari — Kunlik Operatsion Hisobot:**\n\n- 💰 **Bugungi tushum:** ${todayRevenue.toLocaleString()} so‘m (${todayOrders.length} ta buyurtma)\n- 📦 **Kutilayotgan/Jarayondagi buyurtmalar:** ${pendingOrders.length} ta\n- 📈 **Jami umumiy aylanma:** ${totalRevenue.toLocaleString()} so‘m\n\nBarcha tizimlar va kuryerlar navbati bir maromda ishlamoqda.`,
+        action: 'admin_stats',
+      };
+    }
+
+    if (lower.includes('ommabop') || lower.includes('eng ko‘p') || lower.includes('eng kop') || lower.includes('xit')) {
+      const cakes = await Cake.find({ is_popular: 1 });
+      const cakeNames = cakes.map((c) => `• ${c.name} (${c.price.toLocaleString()} so‘m)`).join('\n');
+      return {
+        reply: `🎂 **Eng xaridorgir va ommabop tortlar:**\n\n${cakeNames || 'Barcha tortlar katalogda faol.'}\n\nMijozlar ushbu tortlarga eng ko‘p buyurtma berishmoqda.`,
+        action: 'admin_popular',
+      };
+    }
+
+    // 3. General Admin Copilot advice
+    return {
+      reply: `Assalomu alaykum, ${user?.name || 'Admin'}! Men Mira Admin Copilotman. Men sizga:\n\n1. Yangi bilim va qoidalarni eslab qolish (masalan: «Eslab qol: Sayt yaratuvchisi Abdurashid Ergashev»)\n2. Kunlik savdo va tushum statistikasini tahlil qilish («Bugungi savdo qancha?»)\n3. Oshxona va kuryerlar holati haqida hisobot berishda yordam bera olaman.\n\nNima haqida bilmoqchisiz?`,
+      action: 'admin_help',
     };
   },
 };

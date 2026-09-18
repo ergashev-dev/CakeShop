@@ -10,7 +10,9 @@ export const siteKnowledge = {
     rating: '4.95 yulduzli xizmat ko‘rsatish reytingi',
     description:
       '100% tabiiy va sifatli ingredientlar, fransuz va italyan qandolatchilik san‘ati va individual eksklyuziv dizayn asosida tayyorlanadigan shohona bayram tortlari.',
-    founder: 'Qandolatchi ustalar jamoasi va bosh oshpaz',
+    founder: 'Abdurashid Ergashev',
+    creator: 'Abdurashid Ergashev',
+    developer: 'Abdurashid Ergashev',
     headquarters: 'O‘zbekiston, Toshkent va Farg‘ona',
   },
   contacts: {

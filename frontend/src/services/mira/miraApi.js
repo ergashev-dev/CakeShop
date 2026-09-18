@@ -65,6 +65,54 @@ export const miraApi = {
       return null;
     }
   },
+
+  /**
+   * Get custom memories for Admin
+   */
+  async getMemories() {
+    try {
+      const response = await api.get('/ai/memories');
+      return response.data?.memories || [];
+    } catch (error) {
+      return [];
+    }
+  },
+
+  /**
+   * Add a new custom memory for Admin
+   */
+  async addMemory({ key, fact, category }) {
+    try {
+      const response = await api.post('/ai/memories', { key, fact, category });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a custom memory for Admin
+   */
+  async deleteMemory(id) {
+    try {
+      const response = await api.delete(`/ai/memories/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  /**
+   * Admin Copilot Chat
+   */
+  async adminChat(message) {
+    try {
+      const response = await api.post('/ai/admin-chat', { message });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 export default miraApi;

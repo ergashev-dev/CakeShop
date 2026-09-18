@@ -126,6 +126,117 @@ export const aiController = {
       return res.status(500).json({ error: 'Statistikani yuklab bo‘lmadi.' });
     }
   },
+
+  /**
+   * Get all custom learned memories for Admin
+   */
+  async getMemories(req, res) {
+    try {
+      const settings = await Settings.findOne();
+      const memories = settings?.aiSettings?.customMemories || [];
+      return res.json({ memories });
+    } catch (err) {
+      console.error('Get memories error:', err);
+      return res.status(500).json({ error: 'Xotira ma’lumotlarini yuklab bo‘lmadi.' });
+    }
+  },
+
+  /**
+   * Add a new custom memory fact
+   */
+  async addMemory(req, res) {
+    try {
+      const { key = '', fact = '', category = 'custom' } = req.body;
+      if (!fact.trim()) {
+        return res.status(400).json({ error: 'Fakt matni kiritilishi shart.' });
+      }
+
+      const settings = await Settings.findOne();
+      const currentMemories = settings?.aiSettings?.customMemories || [];
+
+      const newMemory = {
+        id: 'mem-' + Date.now(),
+        key: (key || 'fakt').trim(),
+        fact: fact.trim(),
+        category: category.trim(),
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedAiSettings = {
+        ...(settings.aiSettings || {}),
+        customMemories: [newMemory, ...currentMemories],
+      };
+
+      settings.aiSettings = updatedAiSettings;
+      if (typeof settings.save === 'function') {
+        await settings.save();
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: 'Yangi bilim muvaffaqiyatli saqlandi!',
+        memory: newMemory,
+      });
+    } catch (err) {
+      console.error('Add memory error:', err);
+      return res.status(500).json({ error: 'Xotirani saqlashda xatolik yuz berdi.' });
+    }
+  },
+
+  /**
+   * Delete a custom memory fact
+   */
+  async deleteMemory(req, res) {
+    try {
+      const { id } = req.params;
+      const settings = await Settings.findOne();
+      const currentMemories = settings?.aiSettings?.customMemories || [];
+
+      const updatedMemories = currentMemories.filter((m) => m.id !== id);
+      const updatedAiSettings = {
+        ...(settings.aiSettings || {}),
+        customMemories: updatedMemories,
+      };
+
+      settings.aiSettings = updatedAiSettings;
+      if (typeof settings.save === 'function') {
+        await settings.save();
+      }
+
+      return res.json({
+        success: true,
+        message: 'Bilim xotiradan o‘chirildi.',
+      });
+    } catch (err) {
+      console.error('Delete memory error:', err);
+      return res.status(500).json({ error: 'Xotirani o‘chirishda xatolik yuz berdi.' });
+    }
+  },
+
+  /**
+   * Admin Copilot chat
+   */
+  async adminChat(req, res) {
+    try {
+      const { message = '' } = req.body;
+      if (!message.trim()) {
+        return res.status(400).json({ error: 'Xabar kiritilmadi.' });
+      }
+
+      const response = await aiService.processAdminMessage({
+        message,
+        user: req.user,
+      });
+
+      return res.json({
+        success: true,
+        ...response,
+      });
+    } catch (err) {
+      console.error('Admin chat error:', err);
+      return res.status(500).json({ error: 'Admin Copilot xizmatida xatolik yuz berdi.' });
+    }
+  },
 };
 
 export default aiController;
