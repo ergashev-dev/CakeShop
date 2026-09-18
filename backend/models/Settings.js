@@ -16,6 +16,15 @@ const settingsSchema = new mongoose.Schema(
     contactAddress: { type: String, default: 'Toshkent sh., Navoiy ko‘chasi 14' },
     mandatoryChannel: { type: String, default: '' },
     isMandatorySubEnabled: { type: Boolean, default: false },
+    aiSettings: {
+      isEnabled: { type: Boolean, default: true },
+      websiteQuestions: { type: Boolean, default: true },
+      productRecommendations: { type: Boolean, default: true },
+      orderAssistance: { type: Boolean, default: true },
+      voiceAssistant: { type: Boolean, default: true },
+      generalAiQuestions: { type: Boolean, default: true },
+      imageUnderstanding: { type: Boolean, default: true },
+    },
   },
   { timestamps: true }
 );
@@ -40,6 +49,16 @@ class SettingsProxy {
       return MongooseSettings.create(data);
     }
     const id = crypto.randomBytes(12).toString('hex');
+    const defaultAiSettings = {
+      isEnabled: true,
+      websiteQuestions: true,
+      productRecommendations: true,
+      orderAssistance: true,
+      voiceAssistant: true,
+      generalAiQuestions: true,
+      imageUnderstanding: true,
+    };
+
     const doc = {
       _id: id,
       isStoreOpen: data.isStoreOpen !== false ? 1 : 0,
@@ -52,12 +71,13 @@ class SettingsProxy {
       contactTelegram: data.contactTelegram || '@boltortlari_admin',
       contactInstagram: data.contactInstagram || 'boltortlari_uz',
       contactAddress: data.contactAddress || 'Toshkent sh., Navoiy ko‘chasi 14',
+      aiSettings_json: JSON.stringify(data.aiSettings || defaultAiSettings),
       createdAt: new Date().toISOString(),
     };
 
     sqlite.prepare(`
-      INSERT INTO settings (_id, isStoreOpen, cashbackPercent, deliveryFee, deliveryFeeOutside, freeDeliveryThreshold, workingHours, contactPhone, contactTelegram, contactInstagram, contactAddress, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO settings (_id, isStoreOpen, cashbackPercent, deliveryFee, deliveryFeeOutside, freeDeliveryThreshold, workingHours, contactPhone, contactTelegram, contactInstagram, contactAddress, aiSettings_json, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       doc._id,
       doc.isStoreOpen,
@@ -70,6 +90,7 @@ class SettingsProxy {
       doc.contactTelegram,
       doc.contactInstagram,
       doc.contactAddress,
+      doc.aiSettings_json,
       doc.createdAt
     );
 

@@ -30,6 +30,7 @@ export const settingsController = {
         contactPhone,
         contactTelegram,
         contactAddress,
+        aiSettings,
       } = req.body;
 
       let settings = await Settings.findOne();
@@ -46,6 +47,12 @@ export const settingsController = {
       if (contactPhone) settings.contactPhone = contactPhone.trim();
       if (contactTelegram) settings.contactTelegram = contactTelegram.trim();
       if (contactAddress) settings.contactAddress = contactAddress.trim();
+      if (aiSettings && typeof aiSettings === 'object') {
+        settings.aiSettings = {
+          ...(settings.aiSettings || {}),
+          ...aiSettings,
+        };
+      }
 
       await settings.save();
 

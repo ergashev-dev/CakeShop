@@ -19,6 +19,9 @@ import CookieConsentBanner from './components/common/CookieConsentBanner';
 import PermissionsModal from './components/common/PermissionsModal';
 import OfflineState from './components/states/OfflineState';
 import SessionExpiredModal from './components/states/SessionExpiredModal';
+import MiraFloatingButton from './components/mira/MiraFloatingButton';
+import MiraChatModal from './components/mira/MiraChatModal';
+import miraApi from './services/mira/miraApi';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ScrollToTop from './utils/ScrollToTop';
 import AdminRoute from './routes/AdminRoute';
@@ -34,8 +37,31 @@ function AppContent() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isTelegramOpen, setIsTelegramOpen] = useState(false);
+  const [isMiraOpen, setIsMiraOpen] = useState(false);
+  const [miraSettings, setMiraSettings] = useState({
+    isEnabled: true,
+    websiteQuestions: true,
+    productRecommendations: true,
+    orderAssistance: true,
+    voiceAssistant: true,
+    generalAiQuestions: true,
+    imageUnderstanding: true,
+  });
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Load Mira AI Settings
+  useEffect(() => {
+    let mounted = true;
+    miraApi.getSettings().then((settings) => {
+      if (mounted && settings) {
+        setMiraSettings(settings);
+      }
+    }).catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Handle Google OAuth / URL Auth Token callback
   useEffect(() => {
@@ -163,6 +189,21 @@ function AppContent() {
 
       {/* Permissions Onboarding Modal */}
       <PermissionsModal />
+
+      {/* Mira AI Assistant (Customer-facing, hidden on /admin) */}
+      {!isAdminRoute && miraSettings?.isEnabled !== false && (
+        <>
+          <MiraFloatingButton
+            isOpen={isMiraOpen}
+            onClick={() => setIsMiraOpen((prev) => !prev)}
+          />
+          <MiraChatModal
+            isOpen={isMiraOpen}
+            onClose={() => setIsMiraOpen(false)}
+            aiSettings={miraSettings}
+          />
+        </>
+      )}
     </div>
   );
 }

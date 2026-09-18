@@ -67,6 +67,7 @@ import {
   promoApi,
   settingsApi,
 } from '../../services/api';
+import miraApi from '../../services/mira/miraApi';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import socketClient from '../../services/socket';
@@ -134,7 +135,18 @@ const AdminPage = () => {
     contactPhone: '+998 (90) 123-45-67',
     contactTelegram: '@boltortlari_admin',
     contactAddress: 'Toshkent sh., Navoiy ko‘chasi 14',
+    aiSettings: {
+      isEnabled: true,
+      websiteQuestions: true,
+      productRecommendations: true,
+      orderAssistance: true,
+      voiceAssistant: true,
+      generalAiQuestions: true,
+      imageUnderstanding: true,
+    },
   });
+
+  const [aiStats, setAiStats] = useState(null);
 
   const [analyticsData, setAnalyticsData] = useState({
     timeline: [],
@@ -321,6 +333,13 @@ const AdminPage = () => {
         } else if (activeTab === 'settings') {
           const res = await settingsApi.get();
           if (res.data?.settings) setSettings(res.data.settings);
+        } else if (activeTab === 'ai-settings') {
+          const [sRes, aRes] = await Promise.all([
+            settingsApi.get(),
+            miraApi.getStats(),
+          ]);
+          if (sRes.data?.settings) setSettings(sRes.data.settings);
+          if (aRes) setAiStats(aRes);
         } else if (activeTab === 'orders') {
           const res = await orderApi.getAll();
           setOrders(res.data?.orders || []);
@@ -458,6 +477,34 @@ const AdminPage = () => {
       showToast('Sozlamalarni saqlashda xatolik.', 'error');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Mira AI Settings toggle helper
+  const handleToggleAiSetting = async (key) => {
+    const current = settings.aiSettings || {
+      isEnabled: true,
+      websiteQuestions: true,
+      productRecommendations: true,
+      orderAssistance: true,
+      voiceAssistant: true,
+      generalAiQuestions: true,
+      imageUnderstanding: true,
+    };
+    const updated = {
+      ...current,
+      [key]: !current[key],
+    };
+    const newSettings = {
+      ...settings,
+      aiSettings: updated,
+    };
+    setSettings(newSettings);
+    try {
+      await settingsApi.update(newSettings);
+      showToast('Mira AI sozlamalari yangilandi!');
+    } catch (err) {
+      showToast('Sozlamalarni saqlashda xatolik yuz berdi.', 'error');
     }
   };
 
@@ -950,6 +997,7 @@ const AdminPage = () => {
     if (isSuperAdmin) {
       items.push({ id: 'staff', label: 'Xodimlar Boshqaruvi', icon: ShieldCheck, count: staffList.length });
       items.push({ id: 'settings', label: 'Do‘kon Sozlamalari', icon: SettingsIcon });
+      items.push({ id: 'ai-settings', label: 'Mira AI Sozlamalari', icon: Sparkles });
       items.push({ id: 'logs', label: 'Audit Loglari', icon: FileText });
     }
 
@@ -2064,6 +2112,152 @@ const AdminPage = () => {
                   Sozlamalarni Saqlash
                 </Button>
               </form>
+            </div>
+          )}
+
+          {/* MIRA AI SETTINGS TAB */}
+          {activeTab === 'ai-settings' && (isSuperAdmin || isAdminRole) && (
+            <div className="space-y-6 max-w-4xl animate-in fade-in duration-200">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-lg font-bold">Mira AI Yordamchisi Sozlamalari</h3>
+                  </div>
+                  <p className="text-xs text-[#6B7280] mt-1">
+                    Saytdagi aqlli AI agentining modullarini yoqing, o‘chiring va faollik statistikasini kuzating.
+                  </p>
+                </div>
+                <span className={`px-3 py-1.5 rounded-xl text-xs font-bold border inline-flex items-center gap-1.5 self-start sm:self-auto ${
+                  settings.aiSettings?.isEnabled !== false
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-stone-100 dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${settings.aiSettings?.isEnabled !== false ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`} />
+                  {settings.aiSettings?.isEnabled !== false ? 'Mira AI Faol' : 'Mira AI O‘chirilgan'}
+                </span>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-4 shadow-card">
+                  <span className="text-[11px] font-bold uppercase text-[#6B7280]">Jami So‘rovlar</span>
+                  <div className="text-2xl font-black mt-1 text-[#17181A] dark:text-[#F3F4F6]">
+                    {aiStats?.totalRequests || 0}
+                  </div>
+                  <span className="text-[10px] text-[#6B7280] mt-1 block">Foydalanuvchilar savollari</span>
+                </div>
+                <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-4 shadow-card">
+                  <span className="text-[11px] font-bold uppercase text-[#6B7280]">Muvaffaqiyatli</span>
+                  <div className="text-2xl font-black mt-1 text-emerald-600">
+                    {aiStats?.successfulRequests || 0}
+                  </div>
+                  <span className="text-[10px] text-[#6B7280] mt-1 block">Aniq javob berilgan</span>
+                </div>
+                <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-4 shadow-card">
+                  <span className="text-[11px] font-bold uppercase text-[#6B7280]">O‘rtacha Tezlik</span>
+                  <div className="text-2xl font-black mt-1 text-[#2563EB]">
+                    {aiStats?.avgResponseTimeMs || 180} <span className="text-xs font-normal text-[#6B7280]">ms</span>
+                  </div>
+                  <span className="text-[10px] text-[#6B7280] mt-1 block">Javob qaytarish vaqti</span>
+                </div>
+                <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-4 shadow-card">
+                  <span className="text-[11px] font-bold uppercase text-[#6B7280]">Faol Modullar</span>
+                  <div className="text-2xl font-black mt-1 text-amber-600">
+                    {Object.values(settings.aiSettings || {}).filter(Boolean).length} / 7
+                  </div>
+                  <span className="text-[10px] text-[#6B7280] mt-1 block">Ishlayotgan funksiyalar</span>
+                </div>
+              </div>
+
+              {/* 7 AI Features Toggle Panel */}
+              <div className="bg-white dark:bg-[#16181D] border border-[#E7E9ED] dark:border-[#272A30] rounded-2xl p-6 shadow-card space-y-4">
+                <div className="pb-3 border-b border-[#E7E9ED] dark:border-[#272A30]">
+                  <h4 className="font-bold text-sm">Modullar va Imkoniyatlar Boshqaruvi</h4>
+                  <p className="text-xs text-[#6B7280]">Har bir modulni alohida yoqish yoki o‘chirish mumkin.</p>
+                </div>
+
+                <div className="space-y-3">
+                  {[
+                    {
+                      key: 'isEnabled',
+                      title: 'Mira AI Yordamchisi (Asosiy kalit)',
+                      desc: 'Saytda pastki o‘ng burchakdagi tugma va suhbat oynasini to‘liq yoqish yoki o‘chirish.',
+                    },
+                    {
+                      key: 'websiteQuestions',
+                      title: 'Bol Tortlari haqidagi savol-javoblar',
+                      desc: 'Do‘kon manzili, ish vaqti, yetkazib berish narxlari, aloqa va to‘lov turlari bo‘yicha konsultatsiya.',
+                    },
+                    {
+                      key: 'productRecommendations',
+                      title: 'Mahsulotlarni qidirish va tavsiya qilish',
+                      desc: 'Tort narxlari bo‘yicha ("300 minggacha"), biskvit/krem turi, mehmonsoni bo‘yicha real DB qidiruvi.',
+                    },
+                    {
+                      key: 'orderAssistance',
+                      title: 'Buyurtma va Savat bilan ishlash',
+                      desc: 'Mijoz talabi bilan mahsulotni to‘g‘ridan-to‘g‘ri savatga qo‘shish va buyurtma holatini 5 bosqichda tekshirish.',
+                    },
+                    {
+                      key: 'voiceAssistant',
+                      title: 'Ovoz orqali muloqot (Voice)',
+                      desc: 'Mikrofon orqali savol berish va ovozni matnga o‘girish (Web Speech API).',
+                    },
+                    {
+                      key: 'imageUnderstanding',
+                      title: 'Rasm orqali tort qidirish (Vision)',
+                      desc: 'Foydalanuvchi yuklagan rasm bo‘yicha katalogdan mos keluvchi tortlarni tahlil qilish.',
+                    },
+                    {
+                      key: 'generalAiQuestions',
+                      title: 'Umumiy aqlli suhbat (General AI)',
+                      desc: 'Tort tayyorlash sirlari, bayram tabriklari va qandolatchilik bo‘yicha umumiy savollarga javob berish.',
+                    },
+                  ].map((mod) => {
+                    const isChecked = settings.aiSettings?.[mod.key] !== false;
+                    return (
+                      <div
+                        key={mod.key}
+                        className="p-4 rounded-xl border border-[#E7E9ED] dark:border-[#272A30] bg-[#F7F8FA] dark:bg-[#1E2026] flex items-center justify-between gap-4 transition-all"
+                      >
+                        <div className="space-y-0.5 max-w-xl">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-[#17181A] dark:text-[#F3F4F6]">
+                              {mod.title}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isChecked
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-stone-200 dark:bg-stone-800 text-stone-600 dark:text-stone-400'
+                            }`}>
+                              {isChecked ? 'Faol' : 'O‘chiq'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF] leading-relaxed">
+                            {mod.desc}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAiSetting(mod.key)}
+                          className="shrink-0 p-1 cursor-pointer transition-transform active:scale-95"
+                          aria-label={`${mod.title} holatini o‘zgartirish`}
+                        >
+                          {isChecked ? (
+                            <ToggleRight className="w-8 h-8 text-emerald-600" />
+                          ) : (
+                            <ToggleLeft className="w-8 h-8 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 

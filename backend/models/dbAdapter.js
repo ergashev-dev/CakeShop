@@ -228,6 +228,7 @@ const migrations = [
   "ALTER TABLE cakes ADD COLUMN in_stock INTEGER DEFAULT 1",
   "ALTER TABLE orders ADD COLUMN location_lat REAL DEFAULT 0",
   "ALTER TABLE orders ADD COLUMN location_lng REAL DEFAULT 0",
+  "ALTER TABLE settings ADD COLUMN aiSettings_json TEXT DEFAULT '{}'",
 ];
 
 for (const sql of migrations) {
@@ -330,6 +331,23 @@ function wrapDoc(tableName, row) {
       doc.customCakeConfig = null;
     }
   }
+  if (doc.aiSettings_json) {
+    try {
+      doc.aiSettings = JSON.parse(doc.aiSettings_json);
+    } catch (e) {
+      doc.aiSettings = {};
+    }
+  } else if (!doc.aiSettings && tableName === 'settings') {
+    doc.aiSettings = {
+      isEnabled: true,
+      websiteQuestions: true,
+      productRecommendations: true,
+      orderAssistance: true,
+      voiceAssistant: true,
+      generalAiQuestions: true,
+      imageUnderstanding: true,
+    };
+  }
 
   if (doc.expiresAt) doc.expiresAt = new Date(doc.expiresAt);
   if (doc.resetPasswordExpire) doc.resetPasswordExpire = new Date(doc.resetPasswordExpire);
@@ -341,7 +359,7 @@ function wrapDoc(tableName, row) {
     const fields = [];
     const values = [];
     for (const key of Object.keys(this)) {
-      if (['save', 'toJSON', 'items', 'status_history', 'addresses', 'adminReply', 'customCakeConfig'].includes(key)) continue;
+      if (['save', 'toJSON', 'items', 'status_history', 'addresses', 'adminReply', 'customCakeConfig', 'aiSettings'].includes(key)) continue;
 
       let val = this[key];
       if (typeof val === 'boolean') val = val ? 1 : 0;
@@ -369,6 +387,10 @@ function wrapDoc(tableName, row) {
     if (this.customCakeConfig) {
       fields.push(`customCakeConfig_json = ?`);
       values.push(JSON.stringify(this.customCakeConfig));
+    }
+    if (this.aiSettings) {
+      fields.push(`aiSettings_json = ?`);
+      values.push(JSON.stringify(this.aiSettings));
     }
 
     values.push(this._id);

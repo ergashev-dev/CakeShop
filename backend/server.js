@@ -34,6 +34,7 @@ import bugRoutes from './routes/bugRoutes.js';
 import promoRoutes from './routes/promoRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 
 // Connect to Database
 connectMongoDB();
@@ -90,6 +91,7 @@ app.use('/api/bugs', bugRoutes);
 app.use('/api/promos', promoRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {
